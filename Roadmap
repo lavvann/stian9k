@@ -1,0 +1,31 @@
+Stian9k:
+
+step 1: 
+	Read dataset: Pandas
+
+step 2:
+	Calculate indicators
+
+step 3:
+	Prepare dataset (format input X)
+
+step 4:
+	Decide learning strategy and calculate output matrix for verification/testing
+
+step 5:
+	Create NNs for fitting
+
+step 6:
+	Run NN fitting
+
+step 7:
+	Log result
+
+step 8:
+	Run simulated tranding scenario
+
+step 9:
+	Evaluate
+
+step 10:
+	Repeat
