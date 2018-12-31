@@ -1,2 +1,7 @@
 # ignore all csv
 *.csv
+
+# ignore folder
+venv/
+.idea/
+__pycache__/

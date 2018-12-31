@@ -2,10 +2,12 @@
 import sys  
 import data
 
+
 """ variables """
 data_load_done = False
 format_data_done = False
-gold_data = []
+raw_data = []
+pre_processed_data = []
 
 print(sys.version)
 
@@ -13,33 +15,45 @@ print(sys.version)
 def main_menu():
     global data_load_done
     global format_data_done
-    global gold_data
+    global raw_data
+    global pre_processed_data
 
-    print("\n\nMain:")
-    print("1: import gold data, imported state: " + str(data_load_done))
-    print("2: import oil data, imported state: " + str(data_load_done))
+    print("\n\nPrepare data:")
+    print("1: import raw data, imported state: " + str(data_load_done))
+    print("2: import formatted data, imported state: " + str(format_data_done))
     if data_load_done:
-        print("3: Format data, format state: " + str(format_data_done))
-        print("4: Start training") 
-    print("exit: exit program")
+        print("3: Format raw data, format state: " + str(format_data_done))
+    if format_data_done:    
+        print("4: Plot calculated y") 
+    print("exit: exit program \n")
     choice = input("select action: ")
     while choice != 'exit':
         if choice == '1':
-            gold_data, data_load_done = data.import_data("GCtest.csv")
-            print("gold data imported \n")
+            filename = input("specify file name: \n")
+            raw_data, data_load_done = data.import_raw_data(filename)
+            print("raw data imported \n")
             main_menu()
         elif choice == '2':
-            oil_data, data_load_done = data.import_data("CL.csv")
+            filename = input("specify file name: \n")
+            pre_processed_data, format_data_done = data.import_processed_data(filename)
             main_menu()
         elif choice == '3':
-            x, format_data_done = data.format_data_nn(gold_data, 2, 400, 2)
+            pre_processed_data, format_data_done = data.calc_y(raw_data)
             print("Format data completed \n")
+            main_menu()
+        elif choice == '4':
+            span = input("specify span: \n")
+            span = 500 if span == '' else int(span)
+            start = input("specify start: \n")
+            start = 0 if start == '' else int(start)
+            plt = data.plot_result(pre_processed_data, span, start)
+            plt.show()
             main_menu()
         else:
             print("invalid input \n")
             main_menu()
 
-    print("Exiting")
+    print("Exiting \n")
     exit()
 
 
