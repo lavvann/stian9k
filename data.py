@@ -69,8 +69,6 @@ def calc_y(df):
     pool.close()
     pool.join()
 
-    #  plot_result(df, y)
-
     # save data to csv
     df_save = df
     df_save['y1'] = y[:, 1]
