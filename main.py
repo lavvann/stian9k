@@ -52,7 +52,7 @@ def data_menu():
             plt.show()
             data_menu()
         elif choice == '5':
-            return
+            nn_menu()
         else:
             print("invalid input \n")
             data_menu()
@@ -60,7 +60,7 @@ def data_menu():
     print("Exiting \n")
     exit()
 
-def nn_meny():
+def nn_menu():
     global pre_processed_data
     global nn_data_ready
     
@@ -73,9 +73,9 @@ def nn_meny():
     choice = input("select action: ")
     while choice != 'exit':
         if choice == '1':
-            x_train, x_test, nn_data_ready = data.create_nn_seq(pre_processed_data, 400)
+            x_train, x_test, nn_data_ready = data.create_nn_seq(pre_processed_data, 400, True)
             print("test and train data sequence created\n")
-            nn_meny()
+            nn_menu()
         elif choice == '2':
             span = input("specify span: \n")
             span = 500 if span == '' else int(span)
@@ -85,16 +85,15 @@ def nn_meny():
             plt.show()
             nn_menu()
         elif choice == '3':
-            nn_meny()
+            nn_menu()
         else:
             print("invalid input\n")
-            nn_meny()
+            nn_menu()
     print("Exiting \n")
     exit()
 
 """ Start script """
 data_menu()
-nn_meny()
 
 exit()
 
