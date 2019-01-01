@@ -3,11 +3,10 @@
 import os
 import pandas as pd
 import numpy as np
-import keras
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.dates import DayLocator, HourLocator, DateFormatter, drange
-from matplotlib.ticker import MaxNLocator, IndexFormatter
+from matplotlib.dates import DateFormatter
+from matplotlib.ticker import MaxNLocator
 from datetime import timedelta
 from datetime import datetime
 import multiprocessing
@@ -79,27 +78,6 @@ def calc_y(df):
         df.to_csv(path + filename)
 
     return df_save, True
-
-
-def create_nn_seq(df, time_steps, long):
-    # - df normalization
-    print("Normalizing X \n")
-    df = normalize_data(df)
-
-    print("Creating sequences for NN \n")
-    if long:
-        targets = df.iloc[:, 3]  # Buy signal target
-    else:
-        targets = df.iloc[:, 4]  # Short signal target
-
-    train = keras.preprocessing.sequence.TimeseriesGenerator(df, targets, 1, sampling_rate=1, stride=1,
-                                                             start_index=0, end_index=int(len(df.index) * 0.8),
-                                                             shuffle=True, reverse=False, batch_size=time_steps)
-
-    test = keras.preprocessing.sequence.TimeseriesGenerator(df, targets, 1, sampling_rate=1, stride=1,
-                                                            start_index=int(len(df.index) * 0.8), end_index=None,
-                                                            shuffle=True, reverse=False, batch_size=time_steps)
-    return train, test, True
 
 
 def traverse(df, stop_loss=0.993, goal=1.008):
@@ -176,11 +154,11 @@ def plot_result(df, span=1000, start=0):
     ax.plot(x, y1)
     plt.xticks(rotation=80)  # rotate x ticks from horizontal
     plt.tight_layout()  # fit everything into window
-    plt.grid(b=True, which='major', color='k', linestyle='--')
+    plt.grid(b=True, which='major', color='k', linestyle='--')  # Set grid
 
-    ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')
-    ax.xaxis.set_major_locator(MaxNLocator(11))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M:%S"))
+    ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')   # date_time format
+    ax.xaxis.set_major_locator(MaxNLocator(11))     # number of x-axis ticks
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M:%S"))    # x-axis ticks visual format
 
     for index, r in df[start:(start+span)].iterrows():
         if r[3]:

@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 import sys  
 import data
+import nn
 
 
 """ variables """
@@ -65,16 +66,15 @@ def nn_menu():
     global nn_data_ready
     
     print("\n\nMachine learning:")
-    print("1: create test and train sequence, NN data ready: " + str(nn_data_ready))
+    print("1: start NN fitting")
     print("2: Plot calculated y")
-    print("3: start NN fitting")
     print("exit: exit program \n")
 
     choice = input("select action: ")
     while choice != 'exit':
         if choice == '1':
-            x_train, x_test, nn_data_ready = data.create_nn_seq(pre_processed_data, 400, True)
-            print("test and train data sequence created\n")
+            nn.nn_gen(pre_processed_data)
+            print("nn generation and training completed\n")
             nn_menu()
         elif choice == '2':
             span = input("specify span: \n")
@@ -83,8 +83,6 @@ def nn_menu():
             start = 0 if start == '' else int(start)
             plt = data.plot_result(pre_processed_data, span, start)
             plt.show()
-            nn_menu()
-        elif choice == '3':
             nn_menu()
         else:
             print("invalid input\n")
