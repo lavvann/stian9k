@@ -19,6 +19,7 @@ def data_menu():
     global format_data_done
     global raw_data
     global pre_processed_data
+    global target
 
     print("\n\nPrepare data:")
     print("1: import raw data, imported state: " + str(data_load_done))
@@ -27,7 +28,7 @@ def data_menu():
         print("3: Format raw data, format state: " + str(format_data_done))
     if format_data_done:    
         print("4: Plot calculated y")
-        print("5: Continue to Machine learning")
+        print("5: Start NN")
     print("exit: exit program \n")
     choice = input("select action: ")
     while choice != 'exit':
@@ -38,10 +39,17 @@ def data_menu():
             data_menu()
         elif choice == '2':
             filename = input("specify file name: \n")
-            pre_processed_data, format_data_done = data.import_processed_data(filename)
+            filename = 'full.csv' if filename == '' else filename
+            size = input("Specify size of dataset (x100000): \n")
+            size = 100000 if size == '' else int(size)*100000
+            long = input("specify long 1/0: \n")
+            long = 1 if long == '' else 0
+            pre_processed_data, target, format_data_done = data.import_processed_data(filename, size, long)
             data_menu()
         elif choice == '3':
-            pre_processed_data, format_data_done = data.calc_y(raw_data)
+            long = input("specify long 1/0: \n")
+            long = 1 if long == '' else 0
+            pre_processed_data, target, format_data_done = data.calc_y(raw_data, long)
             print("Format data completed \n")
             data_menu()
         elif choice == '4':
@@ -53,7 +61,9 @@ def data_menu():
             plt.show()
             data_menu()
         elif choice == '5':
-            nn_menu()
+            nn.nn_gen(pre_processed_data, target)
+            print("nn generation and training completed\n")
+            data_menu()
         else:
             print("invalid input \n")
             data_menu()
@@ -61,34 +71,6 @@ def data_menu():
     print("Exiting \n")
     exit()
 
-def nn_menu():
-    global pre_processed_data
-    global nn_data_ready
-    
-    print("\n\nMachine learning:")
-    print("1: start NN fitting")
-    print("2: Plot calculated y")
-    print("exit: exit program \n")
-
-    choice = input("select action: ")
-    while choice != 'exit':
-        if choice == '1':
-            nn.nn_gen(pre_processed_data)
-            print("nn generation and training completed\n")
-            nn_menu()
-        elif choice == '2':
-            span = input("specify span: \n")
-            span = 500 if span == '' else int(span)
-            start = input("specify start: \n")
-            start = 0 if start == '' else int(start)
-            plt = data.plot_result(pre_processed_data, span, start)
-            plt.show()
-            nn_menu()
-        else:
-            print("invalid input\n")
-            nn_menu()
-    print("Exiting \n")
-    exit()
 
 """ Start script """
 data_menu()

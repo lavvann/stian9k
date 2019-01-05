@@ -34,7 +34,7 @@ def import_raw_data(file_name):
     return df, True
 
 
-def import_processed_data(file_name):
+def import_processed_data(file_name, size, long):
     # File path
     script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
     abs_file_path = os.path.join(script_dir + "/NN-data/" + file_name)
@@ -43,7 +43,7 @@ def import_processed_data(file_name):
     fields = ['date_time', 'close', 'volume', 'y1', 'y2']
 
     # Read file
-    print("Opening file... \n \n")
+    print("Opening file... \n")
     try:
         df = pd.read_csv(abs_file_path, header=0, usecols=fields)
         df['date_time'] = df['date_time'].astype('datetime64[ns]')  # correct date_time type definition
@@ -51,12 +51,29 @@ def import_processed_data(file_name):
         print("Something went wrong when reading df from file, error code: " + str(ex))
         return
 
-    print("Finished opening file \ndata has dimensions: " + str(df.shape) + "\n\n")
+    # Select range of dataset
+    if size:
+        df = df.iloc[(len(df.index)-size-5000):(len(df.index)-5000)]
+    print("Finished opening file \ndata has dimensions: " + str(df.shape) + "\n")
 
-    return df, True
+    # - df normalization
+    print("Normalizing X \n")
+    df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
+    df = normalize_data(df)
+
+    print("Selected long: " + str(long) + "  \n")
+    if long:
+        targets = df.iloc[:, 3]  # Buy signal target
+    else:
+        targets = df.iloc[:, 4]  # Short signal target
+
+    df.drop('y1', axis=1, inplace=True)
+    df.drop('y2', axis=1, inplace=True)
+
+    return df, targets, True
 
 
-def calc_y(df):
+def calc_y(df, long):
     # - Y calculation
     print("\n creating Y \n")
     # Multiprocessing:
@@ -77,7 +94,19 @@ def calc_y(df):
         path = "/home/stian/git/stian9k/NN-data/"
         df.to_csv(path + filename)
 
-    return df_save, True
+    df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
+    df = normalize_data(df)
+
+    print("Selected long: " + str(long) + "  \n")
+    if long:
+        targets = df.iloc[:, 3]  # Buy signal target
+    else:
+        targets = df.iloc[:, 4]  # Short signal target
+
+    df.drop('y1', axis=1, inplace=True)
+    df.drop('y2', axis=1, inplace=True)
+
+    return df_save, targets, True
 
 
 def traverse(df, stop_loss=0.993, goal=1.008):
