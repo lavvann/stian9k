@@ -34,7 +34,7 @@ def import_raw_data(file_name):
     return df, True
 
 
-def import_processed_data(file_name, size, long):
+def import_processed_data(file_name, size):
     # File path
     script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
     abs_file_path = os.path.join(script_dir + "/NN-data/" + file_name)
@@ -52,28 +52,27 @@ def import_processed_data(file_name, size, long):
         return
 
     # Select range of dataset
+    interval = 1   # interval between datapoints in dataset (original data is in 1 minute interval)
     if size:
-        df = df.iloc[(len(df.index)-size-5000):(len(df.index)-5000)]
-    print("Finished opening file \ndata has dimensions: " + str(df.shape) + "\n")
+        df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
+
+    # copy date_time and Y data to targets
+    targets = df.iloc[:, [0, 3, 4]].values  # Buy signal target
 
     # - df normalization
     print("Normalizing X \n")
     df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
     df = normalize_data(df)
 
-    print("Selected long: " + str(long) + "  \n")
-    if long:
-        targets = df.iloc[:, 3]  # Buy signal target
-    else:
-        targets = df.iloc[:, 4]  # Short signal target
-
     df.drop('y1', axis=1, inplace=True)
     df.drop('y2', axis=1, inplace=True)
+
+    print("Finished opening file \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(targets.shape) + "\n")
 
     return df, targets, True
 
 
-def calc_y(df, long):
+def calc_y(df):
     # - Y calculation
     print("\n creating Y \n")
     # Multiprocessing:
@@ -97,16 +96,10 @@ def calc_y(df, long):
     df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
     df = normalize_data(df)
 
-    print("Selected long: " + str(long) + "  \n")
-    if long:
-        targets = df.iloc[:, 3]  # Buy signal target
-    else:
-        targets = df.iloc[:, 4]  # Short signal target
+    print("Finished formatting data \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(
+        y.shape) + "\n")
 
-    df.drop('y1', axis=1, inplace=True)
-    df.drop('y2', axis=1, inplace=True)
-
-    return df_save, targets, True
+    return df, y, True
 
 
 def traverse(df, stop_loss=0.993, goal=1.008):
@@ -170,15 +163,15 @@ def traverse(df, stop_loss=0.993, goal=1.008):
 
 def normalize_data(df):
     # columns to normalize
-    cols_to_norm = ['close', 'volume']
+    cols_to_norm = ['date_time', 'close', 'volume']
     df[cols_to_norm] = df[cols_to_norm].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
     return df
 
 
-def plot_result(df, span=1000, start=0):
+def plot_result(df, targets, span=1000, start=0):
     # Plotting:
     fig, ax = plt.subplots()
-    x = df.iloc[start:(start + span), 0]
+    x = targets[start:(start + span), 0]
     y1 = df.iloc[start:(start + span), 1]
     ax.plot(x, y1)
     plt.xticks(rotation=80)  # rotate x ticks from horizontal
@@ -186,13 +179,13 @@ def plot_result(df, span=1000, start=0):
     plt.grid(b=True, which='major', color='k', linestyle='--')  # Set grid
 
     ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')   # date_time format
-    ax.xaxis.set_major_locator(MaxNLocator(11))     # number of x-axis ticks
+    ax.xaxis.set_major_locator(MaxNLocator(20))     # number of x-axis ticks
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M:%S"))    # x-axis ticks visual format
 
-    for index, r in df[start:(start+span)].iterrows():
-        if r[3]:
+    for r in targets[start:(start+span)]:
+        if r[1]:
             plt.axvline(x=r[0], color='g', alpha=0.2)
-        if r[4]:
+        if r[2]:
             plt.axvline(x=r[0], color='r', alpha=0.2)
     plt.draw()
     return plt

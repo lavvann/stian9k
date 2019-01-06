@@ -42,14 +42,10 @@ def data_menu():
             filename = 'full.csv' if filename == '' else filename
             size = input("Specify size of dataset (x100000): \n")
             size = 100000 if size == '' else int(size)*100000
-            long = input("specify long 1/0: \n")
-            long = 1 if long == '' else 0
-            pre_processed_data, target, format_data_done = data.import_processed_data(filename, size, long)
+            pre_processed_data, target, format_data_done = data.import_processed_data(filename, size)
             data_menu()
         elif choice == '3':
-            long = input("specify long 1/0: \n")
-            long = 1 if long == '' else 0
-            pre_processed_data, target, format_data_done = data.calc_y(raw_data, long)
+            pre_processed_data, target, format_data_done = data.calc_y(raw_data)
             print("Format data completed \n")
             data_menu()
         elif choice == '4':
@@ -57,7 +53,7 @@ def data_menu():
             span = 500 if span == '' else int(span)
             start = input("specify start: \n")
             start = 0 if start == '' else int(start)
-            plt = data.plot_result(pre_processed_data, span, start)
+            plt = data.plot_result(pre_processed_data, target, span, start)
             plt.show()
             data_menu()
         elif choice == '5':
