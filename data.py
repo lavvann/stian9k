@@ -34,7 +34,7 @@ def import_raw_data(file_name):
     return df, True
 
 
-def import_processed_data(file_name, size):
+def import_processed_data(file_name, size, interval):
     # File path
     script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
     abs_file_path = os.path.join(script_dir + "/NN-data/" + file_name)
@@ -52,7 +52,6 @@ def import_processed_data(file_name, size):
         return
 
     # Select range of dataset
-    interval = 1   # interval between datapoints in dataset (original data is in 1 minute interval)
     if size:
         df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
 

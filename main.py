@@ -1,7 +1,13 @@
 #!/usr/bin/python3.6
-import sys  
+# import comet_ml in the top of your file
+from comet_ml import Experiment
+import sys
 import data
 import nn
+
+# Add the following code anywhere in your machine learning file
+#experiment = Experiment(api_key="VgR2zMvljaKdfGbeMVSwcZF7m",
+ #                       project_name="general", workspace="lavvann")
 
 
 """ variables """
@@ -10,6 +16,15 @@ format_data_done = False
 raw_data = []
 pre_processed_data = []
 nn_data_ready = False
+
+# Parameters
+EPOCHS = 1
+STEPS = 100
+LR = 0.001       # Learning rate
+INTERVAL = 1
+LSTM_lay = 1
+DENSE_lay = 1
+NEURONS = 1100
 
 print(sys.version)
 
@@ -42,7 +57,7 @@ def data_menu():
             filename = 'full.csv' if filename == '' else filename
             size = input("Specify size of dataset (x100000): \n")
             size = 100000 if size == '' else int(size)*100000
-            pre_processed_data, target, format_data_done = data.import_processed_data(filename, size)
+            pre_processed_data, target, format_data_done = data.import_processed_data(filename, size, INTERVAL)
             data_menu()
         elif choice == '3':
             pre_processed_data, target, format_data_done = data.calc_y(raw_data)
@@ -57,7 +72,7 @@ def data_menu():
             plt.show()
             data_menu()
         elif choice == '5':
-            nn.nn_gen(pre_processed_data, target)
+            nn.nn_gen(pre_processed_data, target, EPOCHS, STEPS, LR, LSTM_lay, DENSE_lay, NEURONS)
             print("nn generation and training completed\n")
             data_menu()
         else:
