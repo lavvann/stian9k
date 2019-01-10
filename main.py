@@ -18,13 +18,13 @@ pre_processed_data = []
 nn_data_ready = False
 
 # Parameters
-EPOCHS = 1
-STEPS = 100
-LR = 0.001       # Learning rate
+EPOCHS = 5
+STEPS = 200
+LR = 0.0001       # Learning rate
 INTERVAL = 1
-LSTM_lay = 1
-DENSE_lay = 1
-NEURONS = 1100
+LSTM_lay = 2
+DENSE_lay = 2
+NEURONS = 200
 
 print(sys.version)
 
