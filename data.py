@@ -1,4 +1,4 @@
-#!usr/bin/python3.6
+#!/usr/bin/python3.6
 """ data import and manipulation """
 import os
 import numpy as np
@@ -10,6 +10,7 @@ from matplotlib.ticker import MaxNLocator
 from datetime import timedelta
 from datetime import datetime
 import multiprocessing
+from functools import partial
 import sys
 
 """ variables """
@@ -80,27 +81,43 @@ def import_processed_data(file_name, size, interval):
 
 def calc_y(df):
     print("\n creating Y \n")
+    # - inputs
+    stop_loss = input("enter stop loss (default is 0.993): ")
+    stop_loss = 0.993 if stop_loss == '' else float(stop_loss)
+    goal = input("enter target goal (default is 1.004): ")
+    goal = 1.004 if goal == '' else float(goal)
+    hold = input("enter neutral variance (default is 0.002): ")
+    hold = 0.002 if hold == '' else float(hold)
+    horizon = input("enter prediction horizon (default is one 1 hour):\n\n ")
+    horizon = 1 if horizon == '' else int(horizon)
+    params = [stop_loss, goal, hold, horizon]
+
     # Multiprocessing:
     num_cores = multiprocessing.cpu_count() - 1  # leave one free to not freeze machine
     df_split = np.array_split(df, num_cores)
     pool = multiprocessing.Pool(num_cores)
-    # - inputs
-    stop_loss, goal, hold, horizon = 0.993, 1.004, 0.002, 24
-    params = [df_split, stop_loss, goal, hold, horizon]
-    result = pool.map(traverse, df_split)
+    func = partial(traverse, params)
+    result = pool.map(func, df_split)
     y = np.concatenate(result, axis=0)
     pool.close()
     pool.join()
+
+    # add close value to Y for plotting purpose
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]  # create column for close price
+    y[:, 4] = df.iloc[:, 1].values
 
     # save data to csv
     df_save = df
     df_save['y1'] = y[:, 1]
     df_save['y2'] = y[:, 2]
+    df_save['y3'] = y[:, 3]
+    df_save['close'] = y[:, 4]
     filename = input("Specify filename for output CSV: \n")
     if filename:
         path = "/home/stian/git/stian9k/NN-data/"
         df.to_csv(path + filename)
 
+    # normalize data
     df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
     df = normalize_data(df)
 
@@ -110,7 +127,8 @@ def calc_y(df):
     return df, y, True
 
 
-def traverse(df, stop_loss=0.993, goal=1.004, hold=0.002, horizon=24):
+def traverse(params, df):
+    stop_loss, goal, hold, horizon = params[0], params[1], params[2], params[3]
     y = df.values
     y = y[:, 0]
     y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for long y bool
@@ -184,11 +202,11 @@ def normalize_data(df):
     return df
 
 
-def plot_result(df, targets, span=1000, start=0):
+def plot_result(targets, span=1000, start=0):
     # Plotting:
     fig, ax = plt.subplots()
     x = targets[start:(start + span), 0]
-    y1 = df.iloc[start:(start + span), 1]
+    y1 = targets[start:(start + span), 4]
     ax.plot(x, y1)
     plt.xticks(rotation=80)  # rotate x ticks from horizontal
     plt.tight_layout()  # fit everything into window
@@ -204,9 +222,10 @@ def plot_result(df, targets, span=1000, start=0):
         if r[2]:
             plt.axvline(x=r[0], color='r', alpha=0.2)
         if r[3]:
-            plt.axvline(x=r[0], color='b', alpha=0.2)
+            plt.axvline(x=r[0], color='y', alpha=0.2)
     plt.draw()
     return plt
+
 
 def data_menu():
     global data_load_done
@@ -246,7 +265,7 @@ def data_menu():
             span = 500 if span == '' else int(span)
             start = input("specify start: \n")
             start = 0 if start == '' else int(start)
-            plt = plot_result(pre_processed_data, target, span, start)
+            plt = plot_result(target, span, start)
             plt.show()
             data_menu()
         else:
