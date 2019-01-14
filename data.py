@@ -1,8 +1,8 @@
 #!usr/bin/python3.6
 """ data import and manipulation """
 import os
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
@@ -12,10 +12,17 @@ from datetime import datetime
 import multiprocessing
 import sys
 
+""" variables """
+data_load_done = False
+format_data_done = False
+raw_data = []
+pre_processed_data = []
+nn_data_ready = False
+
 
 def import_raw_data(file_name):
     # File path
-    script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # <-- absolute dir the script is in
     abs_file_path = os.path.join(script_dir + "/data/" + file_name)
 
     # Select fields
@@ -72,12 +79,14 @@ def import_processed_data(file_name, size, interval):
 
 
 def calc_y(df):
-    # - Y calculation
     print("\n creating Y \n")
     # Multiprocessing:
     num_cores = multiprocessing.cpu_count() - 1  # leave one free to not freeze machine
     df_split = np.array_split(df, num_cores)
     pool = multiprocessing.Pool(num_cores)
+    # - inputs
+    stop_loss, goal, hold, horizon = 0.993, 1.004, 0.002, 24
+    params = [df_split, stop_loss, goal, hold, horizon]
     result = pool.map(traverse, df_split)
     y = np.concatenate(result, axis=0)
     pool.close()
@@ -101,11 +110,12 @@ def calc_y(df):
     return df, y, True
 
 
-def traverse(df, stop_loss=0.993, goal=1.008):
+def traverse(df, stop_loss=0.993, goal=1.004, hold=0.002, horizon=24):
     y = df.values
     y = y[:, 0]
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for long y bool
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for short y bool
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for hold y bool
     n = len(df.index)
 
     for i in range(0, len(df.index)-1, 1):
@@ -120,29 +130,36 @@ def traverse(df, stop_loss=0.993, goal=1.008):
         date_time = df.iloc[i, 0]
         buy = df.iloc[i, 1]
         date_search = df.iloc[i + 1, 0]
-        buy_result_found = 0
+        long_result_found = 0
         short_result_found = 0
+        hold_search = 1
 
         for k in range(i, len(df.index)-1, 1):
             # Check if one day as gone since buy/short
-            under_one_day = datetime.strptime(str(date_search), "%Y-%m-%d %H:%M:%S") <= datetime.strptime(
-                str(date_time + timedelta(hours=24)), "%Y-%m-%d %H:%M:%S")
+            within_horizon = datetime.strptime(str(date_search), "%Y-%m-%d %H:%M:%S") <= datetime.strptime(
+                str(date_time + timedelta(hours=horizon)), "%Y-%m-%d %H:%M:%S")
             date_search = df.iloc[k+1, 0]
-            # Check buy trade
-            if under_one_day:
+            # Check if price reaches target (buy)
+            if within_horizon:
                 close = df.iloc[k, 1]
                 if close / buy >= goal:
                     y[i, 1] = 1
-                    buy_result_found = 1
+                    long_result_found = 1
                 elif close / buy <= stop_loss:
                     y[i, 1] = 0
-                    buy_result_found = 1
-            else:
-                y[i, 1] = 0
-                buy_result_found = 1
+                    long_result_found = 1
+                    
+            # Check if price is neutral (hold)
+            if within_horizon and hold_search:
+                close = df.iloc[k, 1]
+                if close / buy >= 1 + hold or close / buy <= 1 - hold:
+                    y[i, 3] = 1
+                    hold_search = 0
+            elif not within_horizon and hold_search:
+                y[i, 3] = 1
 
-            # Check short trade
-            if under_one_day:
+            # Check if price reaches target (short)
+            if within_horizon:
                 close = df.iloc[k, 1]
                 if close / buy <= 1 / goal:
                     y[i, 2] = 1
@@ -154,7 +171,7 @@ def traverse(df, stop_loss=0.993, goal=1.008):
                 y[i, 2] = 0
                 short_result_found = 1
 
-            if buy_result_found and short_result_found:
+            if long_result_found and short_result_found:
                 break
     print("done \n")
     return y
@@ -186,8 +203,62 @@ def plot_result(df, targets, span=1000, start=0):
             plt.axvline(x=r[0], color='g', alpha=0.2)
         if r[2]:
             plt.axvline(x=r[0], color='r', alpha=0.2)
+        if r[3]:
+            plt.axvline(x=r[0], color='b', alpha=0.2)
     plt.draw()
     return plt
+
+def data_menu():
+    global data_load_done
+    global format_data_done
+    global raw_data
+    global pre_processed_data
+    global target
+
+    print("\n\nPrepare data:")
+    print("1: import raw data, imported state: " + str(data_load_done))
+    print("2: import formatted data, imported state: " + str(format_data_done))
+    if data_load_done:
+        print("3: Format raw data, format state: " + str(format_data_done))
+    if format_data_done:    
+        print("4: Plot calculated y")
+    print("exit: exit program \n")
+    choice = input("select action: ")
+    while choice != 'exit':
+        if choice == '1':
+            filename = input("specify file name: \n")
+            raw_data, data_load_done = import_raw_data(filename)
+            print("raw data imported \n")
+            data_menu()
+        elif choice == '2':
+            filename = input("specify file name: \n")
+            filename = 'full.csv' if filename == '' else filename
+            size = input("Specify size of dataset (x100000): \n")
+            size = 100000 if size == '' else int(size)*100000
+            pre_processed_data, target, format_data_done = import_processed_data(filename, size, INTERVAL)
+            data_menu()
+        elif choice == '3' and data_load_done:
+            pre_processed_data, target, format_data_done = calc_y(raw_data)
+            print("Format data completed \n")
+            data_menu()
+        elif choice == '4' and format_data_done:
+            span = input("specify span: \n")
+            span = 500 if span == '' else int(span)
+            start = input("specify start: \n")
+            start = 0 if start == '' else int(start)
+            plt = plot_result(pre_processed_data, target, span, start)
+            plt.show()
+            data_menu()
+        else:
+            print("invalid input \n")
+            data_menu()
+
+    print("Exiting \n")
+    exit()
+
+
+""" Start script """
+data_menu()
 
 
 
