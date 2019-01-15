@@ -19,6 +19,7 @@ format_data_done = False
 raw_data = []
 pre_processed_data = []
 nn_data_ready = False
+INTERVAL = 1
 
 
 def import_raw_data(file_name):
@@ -44,13 +45,13 @@ def import_raw_data(file_name):
     return df, True
 
 
-def import_processed_data(file_name, size, interval):
+def import_processed_data(filename, size, interval):
     # File path
-    script_dir = os.path.dirname(__file__)  # <-- absolute dir the script is in
-    abs_file_path = os.path.join(script_dir + "/NN-data/" + file_name)
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # <-- absolute dir the script is in
+    abs_file_path = os.path.join(script_dir + "/NN-data/" + filename)
 
     # Select fields
-    fields = ['date_time', 'close', 'volume', 'y1', 'y2']
+    fields = ['date_time', 'close', 'volume', 'y1', 'y2', 'y3']
 
     # Read file
     print("Opening file... \n")
@@ -66,7 +67,8 @@ def import_processed_data(file_name, size, interval):
         df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
 
     # copy date_time and Y data to targets
-    targets = df.iloc[:, [0, 3, 4]].values  # Buy signal target
+    print(str(df.iloc[0]))
+    targets = df.iloc[:, [0, 3, 4, 5, 1]].values  # Buy signal target
 
     # - df normalization
     print("Normalizing X \n")
@@ -75,9 +77,11 @@ def import_processed_data(file_name, size, interval):
 
     df.drop('y1', axis=1, inplace=True)
     df.drop('y2', axis=1, inplace=True)
+    df.drop('y3', axis=1, inplace=True)
 
-    print("Finished opening file \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(targets.shape) + "\n")
-
+    print("Finished opening file \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(targets.shape))
+    print("-----------------------------------------------------------\n")
+	
     return df, targets, True
 
 
@@ -260,7 +264,7 @@ def data_menu():
             filename = input("specify file name: \n")
             filename = 'full.csv' if filename == '' else filename
             size = input("Specify size of dataset (x100000): \n")
-            size = 100000 if size == '' else int(size)*100000
+            size = 5000 if size == '' else int(size*100000)
             pre_processed_data, target, format_data_done = import_processed_data(filename, size, INTERVAL)
             data_menu()
         elif choice == '3' and data_load_done:
