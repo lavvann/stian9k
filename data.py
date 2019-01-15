@@ -38,6 +38,8 @@ def import_raw_data(file_name):
         return
 
     print("Finished opening file \ndata has dimensions: " + str(df.shape) + "\n\n")
+    print("raw data imported")
+    print("-----------------------------------------------------------\n")
 
     return df, True
 
@@ -88,9 +90,10 @@ def calc_y(df):
     goal = 1.004 if goal == '' else float(goal)
     hold = input("enter neutral variance (default is 0.002): ")
     hold = 0.002 if hold == '' else float(hold)
-    horizon = input("enter prediction horizon (default is one 1 hour):\n\n ")
+    horizon = input("enter prediction horizon (default is one 1 hour): ")
     horizon = 1 if horizon == '' else int(horizon)
     params = [stop_loss, goal, hold, horizon]
+    print("\n")
 
     # Multiprocessing:
     num_cores = multiprocessing.cpu_count() - 1  # leave one free to not freeze machine
@@ -114,8 +117,10 @@ def calc_y(df):
     df_save['close'] = y[:, 4]
     filename = input("Specify filename for output CSV: \n")
     if filename:
-        path = "/home/stian/git/stian9k/NN-data/"
-        df.to_csv(path + filename)
+        # File path
+        script_dir = os.path.dirname(os.path.abspath(__file__))  # <-- absolute dir the script is in
+        abs_file_path = os.path.join(script_dir + "/NN-data/" + filename)
+        df.to_csv(abs_file_path + filename)
 
     # normalize data
     df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
@@ -123,6 +128,9 @@ def calc_y(df):
 
     print("Finished formatting data \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(
         y.shape) + "\n")
+		
+    print("Format data completed")
+    print("-----------------------------------------------------------\n")
 
     return df, y, True
 
@@ -171,7 +179,7 @@ def traverse(params, df):
             if within_horizon and hold_search:
                 close = df.iloc[k, 1]
                 if close / buy >= 1 + hold or close / buy <= 1 - hold:
-                    y[i, 3] = 1
+                    y[i, 3] = 0
                     hold_search = 0
             elif not within_horizon and hold_search:
                 y[i, 3] = 1
@@ -234,7 +242,7 @@ def data_menu():
     global pre_processed_data
     global target
 
-    print("\n\nPrepare data:")
+    print("\nPrepare data:")
     print("1: import raw data, imported state: " + str(data_load_done))
     print("2: import formatted data, imported state: " + str(format_data_done))
     if data_load_done:
@@ -247,7 +255,6 @@ def data_menu():
         if choice == '1':
             filename = input("specify file name: \n")
             raw_data, data_load_done = import_raw_data(filename)
-            print("raw data imported \n")
             data_menu()
         elif choice == '2':
             filename = input("specify file name: \n")
@@ -258,12 +265,11 @@ def data_menu():
             data_menu()
         elif choice == '3' and data_load_done:
             pre_processed_data, target, format_data_done = calc_y(raw_data)
-            print("Format data completed \n")
             data_menu()
         elif choice == '4' and format_data_done:
-            span = input("specify span: \n")
+            span = input("specify span (default is 500): \n")
             span = 500 if span == '' else int(span)
-            start = input("specify start: \n")
+            start = input("specify start (default is index 0): \n")
             start = 0 if start == '' else int(start)
             plt = plot_result(target, span, start)
             plt.show()
@@ -275,10 +281,10 @@ def data_menu():
     print("Exiting \n")
     exit()
 
-
-""" Start script """
-data_menu()
-
+if __name__ == '__main__':
+    """ Start script """
+    data_menu()
+    exit()
 
 
 
