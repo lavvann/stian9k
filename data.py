@@ -123,7 +123,7 @@ def calc_y(df):
     if filename:
         # File path
         script_dir = os.path.dirname(os.path.abspath(__file__))  # <-- absolute dir the script is in
-        abs_file_path = os.path.join(script_dir + "/NN-data/" + filename)
+        abs_file_path = os.path.join(script_dir + "/NN-data/")
         df.to_csv(abs_file_path + filename)
 
     # normalize data
