@@ -50,14 +50,12 @@ def import_processed_data(filename, size, interval):
     script_dir = os.path.dirname(os.path.abspath(__file__))  # <-- absolute dir the script is in
     abs_file_path = os.path.join(script_dir + "/NN-data/" + filename)
 
-    # Select fields
-    fields = ['date_time', 'close', 'volume', 'y1', 'y2', 'y3']
-
     # Read file
     print("Opening file... \n")
     try:
-        df = pd.read_csv(abs_file_path, header=0, usecols=fields)
+        df = pd.read_csv(abs_file_path, header=0, index_col=False)
         df['date_time'] = df['date_time'].astype('datetime64[ns]')  # correct date_time type definition
+        df.rename(columns={'Unnamed: 0':'ix'}, inplace=True)
     except Exception as ex:
         print("Something went wrong when reading df from file, error code: " + str(ex))
         return
@@ -67,12 +65,12 @@ def import_processed_data(filename, size, interval):
         df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
 
     # copy date_time and Y data to targets
-    print(str(df.iloc[0]))
-    targets = df.iloc[:, [0, 3, 4, 5, 1]].values  # Buy signal target
+    print("Finished opening file, data has dimensions: " + str(df.shape) + "\n" + str(df.keys())+ "\n")
+    targets = df.iloc[:, [0, 1, 2, 4, 5, 6]].values  # Buy signal target
 
     # - df normalization
     print("Normalizing X \n")
-    df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
+    # df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
     df = normalize_data(df)
 
     df.drop('y1', axis=1, inplace=True)
@@ -90,8 +88,8 @@ def calc_y(df):
     # - inputs
     stop_loss = input("enter stop loss (default is 0.993): ")
     stop_loss = 0.993 if stop_loss == '' else float(stop_loss)
-    goal = input("enter target goal (default is 1.004): ")
-    goal = 1.004 if goal == '' else float(goal)
+    goal = input("enter target goal (default is 1.003): ")
+    goal = 1.003 if goal == '' else float(goal)
     hold = input("enter neutral variance (default is 0.002): ")
     hold = 0.002 if hold == '' else float(hold)
     horizon = input("enter prediction horizon (default is one 1 hour): ")
@@ -109,16 +107,20 @@ def calc_y(df):
     pool.close()
     pool.join()
 
+    # ad ix column to y
+    ix = np.arange(0, len(y), 1)
+    ix.reshape(len(ix), 1)
+    y = np.c_[ix, y]
     # add close value to Y for plotting purpose
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]  # create column for close price
-    y[:, 4] = df.iloc[:, 1].values
+    # y = np.c_[y, np.zeros(y.shape[0], dtype=int)]  # create column for close price
+    # y[:, 4] = df.iloc[:, 1].values
 
     # save data to csv
     df_save = df
-    df_save['y1'] = y[:, 1]
-    df_save['y2'] = y[:, 2]
-    df_save['y3'] = y[:, 3]
-    df_save['close'] = y[:, 4]
+    # df_save['close'] = y[:, 2]
+    df_save['y1'] = y[:, 3]
+    df_save['y2'] = y[:, 4]
+    df_save['y3'] = y[:, 5]
     filename = input("Specify filename for output CSV: \n")
     if filename:
         # File path
@@ -127,7 +129,7 @@ def calc_y(df):
         df.to_csv(abs_file_path + filename)
 
     # normalize data
-    df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
+    # df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
     df = normalize_data(df)
 
     print("Finished formatting data \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(
@@ -141,8 +143,7 @@ def calc_y(df):
 
 def traverse(params, df):
     stop_loss, goal, hold, horizon = params[0], params[1], params[2], params[3]
-    y = df.values
-    y = y[:, 0]
+    y = df.iloc[:, [0, 1]].values
     y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for long y bool
     y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for short y bool
     y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for hold y bool
@@ -173,32 +174,32 @@ def traverse(params, df):
             if within_horizon:
                 close = df.iloc[k, 1]
                 if close / buy >= goal:
-                    y[i, 1] = 1
+                    y[i, 2] = 1
                     long_result_found = 1
                 elif close / buy <= stop_loss:
-                    y[i, 1] = 0
+                    y[i, 2] = 0
                     long_result_found = 1
                     
             # Check if price is neutral (hold)
             if within_horizon and hold_search:
                 close = df.iloc[k, 1]
                 if close / buy >= 1 + hold or close / buy <= 1 - hold:
-                    y[i, 3] = 0
+                    y[i, 4] = 0
                     hold_search = 0
             elif not within_horizon and hold_search:
-                y[i, 3] = 1
+                y[i, 4] = 1
 
             # Check if price reaches target (short)
             if within_horizon:
                 close = df.iloc[k, 1]
                 if close / buy <= 1 / goal:
-                    y[i, 2] = 1
+                    y[i, 3] = 1
                     short_result_found = 1
                 elif close / buy >= stop_loss:
-                    y[i, 2] = 0
+                    y[i, 3] = 0
                     short_result_found = 1
             else:
-                y[i, 2] = 0
+                y[i, 3] = 0
                 short_result_found = 1
 
             if long_result_found and short_result_found:
@@ -209,7 +210,7 @@ def traverse(params, df):
 
 def normalize_data(df):
     # columns to normalize
-    cols_to_norm = ['date_time', 'close', 'volume']
+    cols_to_norm = ['close']
     df[cols_to_norm] = df[cols_to_norm].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
     return df
 
@@ -218,22 +219,22 @@ def plot_result(targets, span=1000, start=0):
     # Plotting:
     fig, ax = plt.subplots()
     x = targets[start:(start + span), 0]
-    y1 = targets[start:(start + span), 4]
+    y1 = targets[start:(start + span), 2]
     ax.plot(x, y1)
     plt.xticks(rotation=80)  # rotate x ticks from horizontal
     plt.tight_layout()  # fit everything into window
     plt.grid(b=True, which='major', color='k', linestyle='--')  # Set grid
 
-    ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')   # date_time format
+    # ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')   # date_time format
     ax.xaxis.set_major_locator(MaxNLocator(20))     # number of x-axis ticks
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M:%S"))    # x-axis ticks visual format
+    # x.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M:%S"))    # x-axis ticks visual format
 
     for r in targets[start:(start+span)]:
-        if r[1]:
-            plt.axvline(x=r[0], color='g', alpha=0.2)
-        if r[2]:
-            plt.axvline(x=r[0], color='r', alpha=0.2)
         if r[3]:
+            plt.axvline(x=r[0], color='g', alpha=0.2)
+        if r[4]:
+            plt.axvline(x=r[0], color='r', alpha=0.2)
+        if r[5]:
             plt.axvline(x=r[0], color='y', alpha=0.2)
     plt.draw()
     return plt

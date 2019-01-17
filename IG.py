@@ -15,8 +15,7 @@ sim_finished = False    # BOOL true when test set is completed
 
 """ ------- MAIN --------- """
 print("\n ------- IG simulation -------  \n")
-while bank > m and not sim_finished:
-    # check for input csv
+# check for input csv
     if not len(sys.argv) > 1:
        exit()
     try:
@@ -29,5 +28,14 @@ while bank > m and not sim_finished:
         print("Something went wrong when reading df from file, error code: " + str(ex))
         sim_finished = True
         exit()
-        
-    exit()
+while bank > m and not sim_finished:
+    trading = False
+    for i in range(0, len(df.index)-1, 1):
+        # long
+        # short
+        # hold
+        # logging
+        pass
+    sim_finished = True
+print("Simulation completed \n"
+exit()
