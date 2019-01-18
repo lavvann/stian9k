@@ -64,9 +64,9 @@ def import_processed_data(filename, size, interval):
     if size:
         df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
 
-    # copy date_time and Y data to targets
+    # copy Y data to targets
     print("Finished opening file, data has dimensions: " + str(df.shape) + "\n" + str(df.keys())+ "\n")
-    targets = df.iloc[:, [0, 1, 2, 4, 5, 6]].values  # Buy signal target
+    targets = df.iloc[:, [0, 1, 2, 4, 5, 6]].values
 
     # - df normalization
     print("Normalizing X \n")
@@ -159,7 +159,7 @@ def traverse(params, df):
 
         # initialize variables
         date_time = df.iloc[i, 0]
-        buy = df.iloc[i, 1]
+        open = df.iloc[i, 1]
         date_search = df.iloc[i + 1, 0]
         long_result_found = 0
         short_result_found = 0
@@ -168,22 +168,21 @@ def traverse(params, df):
         for k in range(i, len(df.index)-1, 1):
             # Check if one day as gone since buy/short
             within_horizon = datetime.strptime(str(date_search), "%Y-%m-%d %H:%M:%S") <= datetime.strptime(
-                str(date_time + timedelta(hours=horizon)), "%Y-%m-%d %H:%M:%S")
+                str(date_time + timedelta(hours=horizon)), "%Y-%m-%d %H:%M:%S")    
             date_search = df.iloc[k+1, 0]
             # Check if price reaches target (buy)
             if within_horizon:
                 close = df.iloc[k, 1]
-                if close / buy >= goal:
+                if close / open >= goal:
                     y[i, 2] = 1
                     long_result_found = 1
-                elif close / buy <= stop_loss:
+                elif close / open <= stop_loss:
                     y[i, 2] = 0
                     long_result_found = 1
                     
             # Check if price is neutral (hold)
             if within_horizon and hold_search:
-                close = df.iloc[k, 1]
-                if close / buy >= 1 + hold or close / buy <= 1 - hold:
+                if close / open >= 1 + hold or close / open <= 1 - hold:
                     y[i, 4] = 0
                     hold_search = 0
             elif not within_horizon and hold_search:
@@ -191,19 +190,18 @@ def traverse(params, df):
 
             # Check if price reaches target (short)
             if within_horizon:
-                close = df.iloc[k, 1]
-                if close / buy <= 1 / goal:
+                if close / open <= 1 / goal:
                     y[i, 3] = 1
                     short_result_found = 1
-                elif close / buy >= stop_loss:
+                elif close / open >= stop_loss:
                     y[i, 3] = 0
                     short_result_found = 1
-            else:
-                y[i, 3] = 0
-                short_result_found = 1
-
-            if long_result_found and short_result_found:
+            elif not within_horizon and short_result_found:
                 break
+            elif not within_horizon and not short_result_found:
+                y[i, 3] = 0
+                break
+
     print("done \n")
     return y
 
@@ -265,7 +263,7 @@ def data_menu():
             filename = input("specify file name: \n")
             filename = 'full.csv' if filename == '' else filename
             size = input("Specify size of dataset (x100000): \n")
-            size = 5000 if size == '' else int(size*100000)
+            size = 5000 if size == '' else int(float(size)*100000)
             pre_processed_data, target, format_data_done = import_processed_data(filename, size, INTERVAL)
             data_menu()
         elif choice == '3' and data_load_done:
