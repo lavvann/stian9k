@@ -233,7 +233,7 @@ def plot_result(targets, span=1000, start=0):
         if r[4]:
             plt.axvline(x=r[0], color='r', alpha=0.2)
         if r[5]:
-            plt.axvline(x=r[0], color='y', alpha=0.2)
+            plt.axvline(x=r[0], color='lightyellow', alpha=0.2)
     plt.draw()
     return plt
 
