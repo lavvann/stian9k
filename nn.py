@@ -118,7 +118,7 @@ print(str(dn[0]) + " \n")
 
 # ---------------- TIME SERIES GENERATOR TEST ---------------------
 # Try generate batches using keras timeseriesgenerator
-train = TimeseriesGenerator(dn[:, [0, 2]], dn[:, 3], length=1, sampling_rate=1, stride=1,
+train = TimeseriesGenerator(dn[:, [0, 1]], dn[:, 3], length=1, sampling_rate=1, stride=1,
                             start_index=0, end_index=int(len(df.index) * 0.8),
                             shuffle=False, reverse=False, batch_size=STEPS)
 test = []
@@ -128,7 +128,7 @@ print("y0 :" + str(y) + "\n")
 print("\n\nLength of train: " + str(len(x)) + "\nLength of test: " + str(len(y)) + "\n")
 
 # --------------- DATA GENERATOR TEST -----------------------------
-sequence = dn[:, 1].reshape(len(dn), 1, 1)  #
+sequence = dn[:, [0, 1]].reshape(len(dn), 2, 1)  #
 labels = dn[:, 2].tolist()  #
 
 # create TensorFlow Dataset object
