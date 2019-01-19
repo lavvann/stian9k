@@ -1,19 +1,31 @@
-#!usr/bin/python3.6
+#!/usr/bin/python3.6
 from keras.preprocessing.sequence import TimeseriesGenerator
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Embedding, LSTM, Dropout, CuDNNLSTM
 from keras import optimizers
 import data
+import sys
 import numpy as np
 import pandas as pd
 import time
 from datetime import datetime
 import matplotlib.pyplot as plt
 import tensorflow as tf
+from tensorflow.contrib.data.python.ops import sliding
 from keras import backend as k
 
 
-def nn_gen(df, target, *args):
+# Parameters
+EPOCHS = 5
+STEPS = 50
+LR = 0.0001       # Learning rate
+INTERVAL = 1
+LSTM_lay = 2
+DENSE_lay = 2
+NEURONS = 200
+
+
+def nn_gen(data, *args):
     # make tensorflow not allocate all gpu memory at start
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -44,6 +56,7 @@ def nn_gen(df, target, *args):
     print("\n\nLength of train: " + str(len(train)) + "\nLength of test: " + str(len(test)) + "\n")
     time.sleep(3)
 
+    """
     # make NN model
     model = Sequential()
     # add input lstm layer
@@ -90,4 +103,57 @@ def nn_gen(df, target, *args):
     plt.xlabel('Epoch')
     plt.legend(['Train', 'Test'], loc='upper left')
     plt.show()
+    """
 
+
+""" ------- MAIN --------- """
+# check for input csv
+if not len(sys.argv) > 1:
+    exit()
+df, dn, success = data.import_processed_data("", 0, 0, sys.argv[1])
+if not success:
+    print("Could not import file, exiting.\n")
+    exit()
+print(str(dn[0]) + " \n")
+
+# ---------------- TIME SERIES GENERATOR TEST ---------------------
+# Try generate batches using keras timeseriesgenerator
+train = TimeseriesGenerator(dn[:, [0, 2]], dn[:, 3], length=1, sampling_rate=1, stride=1,
+                            start_index=0, end_index=int(len(df.index) * 0.8),
+                            shuffle=False, reverse=False, batch_size=STEPS)
+test = []
+x, y = train[0]
+print("x0 :" + str(x) + "\n")
+print("y0 :" + str(y) + "\n")
+print("\n\nLength of train: " + str(len(x)) + "\nLength of test: " + str(len(y)) + "\n")
+
+# --------------- DATA GENERATOR TEST -----------------------------
+sequence = dn[:, 1].reshape(len(dn), 1, 1)  #
+labels = dn[:, 2].tolist()  #
+
+# create TensorFlow Dataset object
+data = tf.data.Dataset.from_tensor_slices((sequence, labels))
+
+# sliding window batch
+window_size = 5
+window_shift = 1
+data = data.apply(sliding.sliding_window_batch(window_size=window_size, window_shift=window_shift))
+data = data.shuffle(1000, reshuffle_each_iteration=False)
+data = data.batch(1)
+
+#iter = dataset.make_initializable_iterator()
+iter = tf.data.Iterator.from_structure(data.output_types, data.output_shapes)
+el = iter.get_next()
+
+# create initialization ops
+init_op = iter.make_initializer(data)
+
+NR_EPOCHS = 1
+with tf.Session() as sess:
+    for e in range (NR_EPOCHS):
+        print("\nepoch: ", e, "\n")
+        sess.run(init_op)
+        print("1  ", sess.run(el))
+        print("2  ", sess.run(el))
+
+exit()

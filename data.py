@@ -45,15 +45,16 @@ def import_raw_data(file_name):
     return df, True
 
 
-def import_processed_data(filename, size, interval):
-    # File path
-    script_dir = os.path.dirname(os.path.abspath(__file__))  # <-- absolute dir the script is in
-    abs_file_path = os.path.join(script_dir + "/NN-data/" + filename)
+def import_processed_data(filename, size, interval, file=None):
+    if file is None:
+        # File path
+        script_dir = os.path.dirname(os.path.abspath(__file__))  # <-- absolute dir the script is in
+        file = os.path.join(script_dir + "/NN-data/" + filename)
 
     # Read file
     print("Opening file... \n")
     try:
-        df = pd.read_csv(abs_file_path, header=0, index_col=False)
+        df = pd.read_csv(file, header=0, index_col=False)
         df['date_time'] = df['date_time'].astype('datetime64[ns]')  # correct date_time type definition
         df.rename(columns={'Unnamed: 0':'ix'}, inplace=True)
     except Exception as ex:
@@ -65,12 +66,14 @@ def import_processed_data(filename, size, interval):
         df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
 
     # copy Y data to targets
-    print("Finished opening file, data has dimensions: " + str(df.shape) + "\n" + str(df.keys())+ "\n")
-    targets = df.iloc[:, [0, 1, 2, 4, 5, 6]].values
+    print("Finished opening file, data has dimensions: " + str(df.shape) + "\n" + str(df.keys()) + "\n")
+    for key in df.keys():
+        if not key == 'date_time':
+            df[key] = pd.to_numeric(df[key], downcast='float')
+    targets = df.iloc[:, [0, 2, 4, 5, 6]].values
 
     # - df normalization
     print("Normalizing X \n")
-    # df['date_time'] = pd.to_timedelta(df['date_time']).dt.total_seconds().astype(int)  # convert timestamp to float
     df = normalize_data(df)
 
     df.drop('y1', axis=1, inplace=True)
@@ -79,7 +82,7 @@ def import_processed_data(filename, size, interval):
 
     print("Finished opening file \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(targets.shape))
     print("-----------------------------------------------------------\n")
-	
+
     return df, targets, True
 
 
@@ -134,7 +137,7 @@ def calc_y(df):
 
     print("Finished formatting data \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(
         y.shape) + "\n")
-		
+
     print("Format data completed")
     print("-----------------------------------------------------------\n")
 
@@ -161,7 +164,6 @@ def traverse(params, df):
         date_time = df.iloc[i, 0]
         open = df.iloc[i, 1]
         date_search = df.iloc[i + 1, 0]
-        long_result_found = 0
         short_result_found = 0
         hold_search = 1
 
@@ -175,10 +177,8 @@ def traverse(params, df):
                 close = df.iloc[k, 1]
                 if close / open >= goal:
                     y[i, 2] = 1
-                    long_result_found = 1
                 elif close / open <= stop_loss:
                     y[i, 2] = 0
-                    long_result_found = 1
                     
             # Check if price is neutral (hold)
             if within_horizon and hold_search:
@@ -217,7 +217,7 @@ def plot_result(targets, span=1000, start=0):
     # Plotting:
     fig, ax = plt.subplots()
     x = targets[start:(start + span), 0]
-    y1 = targets[start:(start + span), 2]
+    y1 = targets[start:(start + span), 1]
     ax.plot(x, y1)
     plt.xticks(rotation=80)  # rotate x ticks from horizontal
     plt.tight_layout()  # fit everything into window
@@ -228,12 +228,12 @@ def plot_result(targets, span=1000, start=0):
     # x.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M:%S"))    # x-axis ticks visual format
 
     for r in targets[start:(start+span)]:
-        if r[3]:
+        if r[2]:
             plt.axvline(x=r[0], color='g', alpha=0.2)
-        if r[4]:
+        if r[3]:
             plt.axvline(x=r[0], color='r', alpha=0.2)
-        if r[5]:
-            plt.axvline(x=r[0], color='lightyellow', alpha=0.2)
+        if r[4]:
+            plt.axvline(x=r[0], color='lightyellow', alpha=0.4)
     plt.draw()
     return plt
 

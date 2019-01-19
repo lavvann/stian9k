@@ -12,22 +12,21 @@ m = 0.0                 # margin (deposit for each trade)
 sim_finished = False    # BOOL true when test set is completed
 
 
-
 """ ------- MAIN --------- """
 print("\n ------- IG simulation -------  \n")
 # check for input csv
-    if not len(sys.argv) > 1:
-       exit()
-    try:
-        fields = ['date_time', 'close', 'volume', 'y1', 'y2', 'y3']
-        df = pd.read_csv(sys.argv[1], header=0, index_col=False)
-        df['date_time'] = df['date_time'].astype('datetime64[ns]')  # correct date_time type definition
-        df.rename(columns={'Unnamed: 0':'ix'}, inplace=True)
-        print("Finished opening file, Y has dimensions: " + str(df.shape) + "\n" + str(df.keys())+ "\n")
-    except Exception as ex:
-        print("Something went wrong when reading df from file, error code: " + str(ex))
-        sim_finished = True
-        exit()
+if not len(sys.argv) > 1:
+    exit()
+try:
+    fields = ['date_time', 'close', 'volume', 'y1', 'y2', 'y3']
+    df = pd.read_csv(sys.argv[1], header=0, index_col=False)
+    df['date_time'] = df['date_time'].astype('datetime64[ns]')  # correct date_time type definition
+    df.rename(columns={'Unnamed: 0':'ix'}, inplace=True)
+    print("Finished opening file, Y has dimensions: " + str(df.shape) + "\n" + str(df.keys())+ "\n")
+except Exception as ex:
+    print("Something went wrong when reading df from file, error code: " + str(ex))
+    sim_finished = True
+    exit()
 while bank > m and not sim_finished:
     trading = False
     for i in range(0, len(df.index)-1, 1):
@@ -37,5 +36,5 @@ while bank > m and not sim_finished:
         # logging
         pass
     sim_finished = True
-print("Simulation completed \n"
+print("Simulation completed \n")
 exit()
