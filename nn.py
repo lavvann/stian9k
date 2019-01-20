@@ -118,14 +118,18 @@ print(str(dn[0]) + " \n")
 
 # ---------------- TIME SERIES GENERATOR TEST ---------------------
 # Try generate batches using keras timeseriesgenerator
-train = TimeseriesGenerator(dn[:, [0, 1]], dn[:, 3], length=1, sampling_rate=1, stride=1,
+train = TimeseriesGenerator(dn[:, [0, 1]], dn[:, 3], length=10, sampling_rate=1, stride=1,
                             start_index=0, end_index=int(len(df.index) * 0.8),
-                            shuffle=False, reverse=False, batch_size=STEPS)
+                            shuffle=True, reverse=False, batch_size=1)
 test = []
-x, y = train[0]
-print("x0 :" + str(x) + "\n")
-print("y0 :" + str(y) + "\n")
-print("\n\nLength of train: " + str(len(x)) + "\nLength of test: " + str(len(y)) + "\n")
+x0, y0 = train[0]
+x1, y1 = train[1]
+
+print("x0 :" + str(x0) + "\n")
+print("y0 :" + str(y0) + "\n")
+print("x1 :" + str(x1) + "\n")
+print("y1 :" + str(y1) + "\n")
+print("\n\nLength of train: " + str(len(train)) + "\nLength of x: " + str(len(train[0])) + "\n")
 
 # --------------- DATA GENERATOR TEST -----------------------------
 sequence = dn[:, [0, 1]].reshape(len(dn), 2, 1)  #
@@ -135,11 +139,17 @@ labels = dn[:, 2].tolist()  #
 data = tf.data.Dataset.from_tensor_slices((sequence, labels))
 
 # sliding window batch
-window_size = 5
+window_size = 10
 window_shift = 1
 data = data.apply(sliding.sliding_window_batch(window_size=window_size, window_shift=window_shift))
-data = data.shuffle(1000, reshuffle_each_iteration=False)
+# data = data.shuffle(1000, reshuffle_each_iteration=False)
 data = data.batch(1)
+
+"""
+WARNING:tensorflow:From /home/stian/.local/lib/python3.6/site-packages/tensorflow/python/util/deprecation.py:488: sliding_window_batch (from tensorflow.contrib.data.python.ops.sliding) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `tf.data.Dataset.window(size=window_size, shift=window_shift, stride=window_stride).flat_map(lambda x: x.batch(window.size))` instead.
+"""
 
 #iter = dataset.make_initializable_iterator()
 iter = tf.data.Iterator.from_structure(data.output_types, data.output_shapes)
@@ -154,6 +164,5 @@ with tf.Session() as sess:
         print("\nepoch: ", e, "\n")
         sess.run(init_op)
         print("1  ", sess.run(el))
-        print("2  ", sess.run(el))
 
 exit()
