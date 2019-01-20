@@ -120,7 +120,7 @@ print(str(dn[0]) + " \n")
 # Try generate batches using keras timeseriesgenerator
 train = TimeseriesGenerator(dn[:, [0, 1]], dn[:, 3], length=10, sampling_rate=1, stride=1,
                             start_index=0, end_index=int(len(df.index) * 0.8),
-                            shuffle=True, reverse=False, batch_size=1)
+                            shuffle=Truegit , reverse=False, batch_size=1)
 test = []
 x0, y0 = train[0]
 x1, y1 = train[1]
