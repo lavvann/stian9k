@@ -70,7 +70,7 @@ def import_processed_data(filename, size, interval, file=None):
     for key in df.keys():
         if not key == 'date_time':
             df[key] = pd.to_numeric(df[key], downcast='float')
-    targets = df.iloc[:, [0, 2, 4, 5, 6]].values
+    targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
 
     # - df normalization
     print("Normalizing X \n")
@@ -114,16 +114,16 @@ def calc_y(df):
     ix = np.arange(0, len(y), 1)
     ix.reshape(len(ix), 1)
     y = np.c_[ix, y]
-    # add close value to Y for plotting purpose
-    # y = np.c_[y, np.zeros(y.shape[0], dtype=int)]  # create column for close price
-    # y[:, 4] = df.iloc[:, 1].values
+
+    # remove date_time from array
+    y = y[:,[0, 2, 3, 4, 5]]
 
     # save data to csv
     df_save = df
     # df_save['close'] = y[:, 2]
-    df_save['y1'] = y[:, 3]
-    df_save['y2'] = y[:, 4]
-    df_save['y3'] = y[:, 5]
+    df_save['y1'] = y[:, 2]
+    df_save['y2'] = y[:, 3]
+    df_save['y3'] = y[:, 4]
     filename = input("Specify filename for output CSV: \n")
     if filename:
         # File path

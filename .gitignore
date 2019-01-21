@@ -1,5 +1,6 @@
 # ignore all csv
 *.csv
+*.swp
 
 # ignore folder
 venv/
