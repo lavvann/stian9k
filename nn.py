@@ -38,10 +38,7 @@ def nn_gen(data, *args):
     dense_layers = args[4]
     neurons = args[5]
 
-    # reduction ratio neuron each layer, last added layer neurons/2
-    lstm_red = int((neurons/2)/lstm_layers)
-    dense_red = int((neurons/2)/dense_layers)
-
+    """
     # prepare data for NN
     arr = df.values
 
@@ -56,9 +53,12 @@ def nn_gen(data, *args):
     print("\n\nLength of train: " + str(len(train)) + "\nLength of test: " + str(len(test)) + "\n")
     time.sleep(3)
 
-    """
+    
     # make NN model
     model = Sequential()
+    # reduction ratio neuron each layer, last added layer neurons/2
+    lstm_red = int((neurons/2)/lstm_layers)
+    dense_red = int((neurons/2)/dense_layers)
     # add input lstm layer
     model.add(CuDNNLSTM(units=neurons, input_shape=(1, 3), return_sequences=True))
     # add lstm layers

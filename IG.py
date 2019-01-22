@@ -14,7 +14,7 @@ sim_finished = False    # BOOL true when test set is completed
 
 """ ------- MAIN --------- """
 print("\n ------- IG simulation -------  \n")
-# check for input csv
+# check for input csv and read
 if not len(sys.argv) > 1:
     exit()
 try:
@@ -27,6 +27,7 @@ except Exception as ex:
     print("Something went wrong when reading df from file, error code: " + str(ex))
     sim_finished = True
     exit()
+# Start trading
 while bank > m and not sim_finished:
     trading = False
     for i in range(0, len(df.index)-1, 1):

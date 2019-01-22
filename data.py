@@ -270,8 +270,8 @@ def data_menu():
             pre_processed_data, target, format_data_done = calc_y(raw_data)
             data_menu()
         elif choice == '4' and format_data_done:
-            span = input("specify span (default is 500): \n")
-            span = 500 if span == '' else int(span)
+            span = input("specify span (default is 5000): \n")
+            span = 5000 if span == '' else int(span)
             start = input("specify start (default is index 0): \n")
             start = 0 if start == '' else int(start)
             plt = plot_result(target, span, start)
