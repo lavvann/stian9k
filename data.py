@@ -170,7 +170,7 @@ def traverse(params, df):
         for k in range(i, len(df.index)-1, 1):
             # Check if one day as gone since buy/short
             within_horizon = datetime.strptime(str(date_search), "%Y-%m-%d %H:%M:%S") <= datetime.strptime(
-                str(date_time + timedelta(hours=horizon)), "%Y-%m-%d %H:%M:%S")    
+                str(date_time + timedelta(hours=horizon)), "%Y-%m-%d %H:%M:%S")
             date_search = df.iloc[k+1, 0]
             # Check if price reaches target (buy)
             if within_horizon:
@@ -179,7 +179,7 @@ def traverse(params, df):
                     y[i, 2] = 1
                 elif close / open <= stop_loss:
                     y[i, 2] = 0
-                    
+
             # Check if price is neutral (hold)
             if within_horizon and hold_search:
                 if close / open >= 1 + hold or close / open <= 1 - hold:
@@ -250,7 +250,7 @@ def data_menu():
     print("2: import formatted data, imported state: " + str(format_data_done))
     if data_load_done:
         print("3: Format raw data, format state: " + str(format_data_done))
-    if format_data_done:    
+    if format_data_done:
         print("4: Plot calculated y")
     print("exit: exit program \n")
     choice = input("select action: ")
@@ -288,9 +288,4 @@ if __name__ == '__main__':
     """ Start script """
     data_menu()
     exit()
-
-
-
-
-
 
