@@ -10,6 +10,7 @@ bank = 10000.0          # Start amount EUR
 sg = 0.0                # spot gold price EUR
 m = 0.0                 # margin (deposit for each trade)
 sim_finished = False    # BOOL true when test set is completed
+goal = 1.003            # default training gain factor 
 
 
 """ ------- MAIN --------- """
@@ -27,13 +28,52 @@ except Exception as ex:
     print("Something went wrong when reading df from file, error code: " + str(ex))
     sim_finished = True
     exit()
+    
 # Start trading
-while bank > m and not sim_finished:
-    trading = False
+while not sim_finished:
+    trading_l = False
+    trading_s = False
     for i in range(0, len(df.index)-1, 1):
         # long
+        If df.iloc[i, 3]
+            if not trading_l:
+                # 1 Contract cost
+                m1 = (sg+spread)*0,057
+                if bank/m1 > std_pos:   # if enough money to open standard position
+                    position = std_pos  # else as many as possible, break if 0
+                else:
+                    position = int(bank/m1)
+                    if position == 0: break
+                trading_l = True
+            target = df.iloc[i, 1] * goal   # Update target
+                  
         # short
-        # hold
+        If df.iloc[i, 4]
+            if not trading_s:
+                # 1 Contract cost
+                m1 = (sg-spread)*0,057
+                if bank/m1 > std_pos:   # if enough money to open standard position
+                    position = std_pos  # else as many as possible, break if 0
+                else:
+                    position = int(bank/m1)
+                    if position == 0: break
+                trading_s = True
+            target = df.iloc[i, 1] * (1/goal)  # Update target
+            
+        # hold or end position
+        if trading_l:   # end long
+            if df.iloc[i, 1] >= target:
+                position = 0
+                bank += std_pos
+                trading_l = False
+                target = 0
+         if trading_s:  # end short
+            if df.iloc[i, 1] <= target:
+                position = 0
+                bank += std_pos
+                trading_s = False
+                target = 0
+        
         # logging
         pass
     sim_finished = True
