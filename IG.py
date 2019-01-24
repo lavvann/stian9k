@@ -17,9 +17,8 @@ spread = 0.3            # default IG spread $
 std_pos = 100           # default trade amount
 
 
-def plot_result(y, span=1000, start=0):
+def plot_result(y, span=5000, start=0):
     # Plotting:
-    start = 336500
     fig, ax = plt.subplots()
     # axis y1
     x = y[start:(start + span), 0]
@@ -31,7 +30,7 @@ def plot_result(y, span=1000, start=0):
     y2 = y[start:(start + span), 5]
     ax2.plot(x, y2, 'r')
     ax2.tick_params(axis='y', labelcolor='r')
-    
+
     plt.xticks(rotation=80)  # rotate x ticks from horizontal
     plt.tight_layout()  # fit everything into window
     plt.grid(b=True, which='major', color='k', linestyle='--')  # Set grid
@@ -92,7 +91,7 @@ while not sim_finished:
                 l_start = sg
                 trading_l = True
                 # print("long at index: " + str(i) + ", long signal: " + str(y[i, 2]))
-            target = y[i, 1] * goal   # Update target
+            if not trading_s and trading_l: target = sg * goal   # Update target
 
         # short
         if y[i, 3]:
@@ -108,26 +107,22 @@ while not sim_finished:
                         break
                 s_start = sg
                 trading_s = True
-                # print("short at index: " + str(i) + ", short signal: " + str(y[i, 3]))
-            target = y[i, 1] * (1/goal)  # Update target
+            if not trading_l and trading_s:
+                target = sg * (1/goal)  # Update target
 
         # hold or end position
         if trading_l:   # end long
-            if (y[i, 1] >= target or y[i, 3]):  # holdingn not benifitial when long (2015, 2014 tested)
+            if sg >= target:
                 position = 0
                 bank += std_pos*(sg-l_start) - (std_pos*spread)  # Trade gain EUR
                 trading_l = False
                 target = 0
-                if (std_pos*(sg-l_start) - (std_pos*spread)) < 0:
-                    print("----Closed long at index: " + str(i) + ", gain: " + str(std_pos*(sg-l_start) - (std_pos*spread)))
         if trading_s:  # end short
-            if (y[i, 1] <= target or y[i, 2]) and not y[i, 4]:  # holding is benifital when short (2014, 2015 tested)
+            if sg <= target:
                 position = 0
                 bank += std_pos*(s_start-sg) - (std_pos*spread)  # Trade gain EUR
                 trading_s = False
                 target = 0
-                if (std_pos*(s_start-sg) - (std_pos*spread)) < 0:
-                    print("----Closed short at index: " + str(i) + ", gain: " + str(std_pos*(s_start-sg) - (std_pos*spread)))
 
         # logging
         y[i, 5] = bank
