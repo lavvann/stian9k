@@ -47,7 +47,7 @@ BATCH_SIZE = int(len(dn)/STEPS) # all data in each BATCH
 # Try generate batches using keras timeseriesgenerator
 train = TimeseriesGenerator(dn[:, [0, 1]], dn[:, 3], length=STEPS, sampling_rate=1, stride=1,
                             start_index=0, end_index=int(len(dn) * 0.8),
-                            shuffle=False , reverse=False, batch_size=100)
+                            shuffle=False , reverse=False, batch_size=BATCH_SIZE)
 
 test = TimeseriesGenerator(dn[:, [0, 1]], dn[:, 3], length=STEPS, sampling_rate=1, stride=1,
                             start_index=round(len(dn)*0.8), end_index=(len(dn)-1),
@@ -107,13 +107,14 @@ model = Sequential()
 lstm_red = int((NEURONS/2)/LSTM_LAYERS)
 dense_red = int((NEURONS/2)/DENSE_LAYERS)
 # add input lstm layer
-model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS, 2 ), return_sequences=True))
+#model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS, 2 ), return_sequences=True))
+model.add(LSTM(units=NEURONS, input_shape=(STEPS, 2 ), return_sequences=True))
 # add lstm layers
 for i in range(0, LSTM_LAYERS, 1):
     NEURONS = NEURONS - (i * lstm_red)
-    model.add(CuDNNLSTM(units=NEURONS, return_sequences=True))
+    model.add(LSTM(units=NEURONS, return_sequences=True))
 # add LSTM layer without return sequence to enable dense output
-model.add(CuDNNLSTM(units=NEURONS))
+model.add(LSTM(units=NEURONS))
 # add dense layers
 for i in range(0, DENSE_LAYERS, 1):
     NEURONS = NEURONS - (i * dense_red)
