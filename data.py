@@ -70,12 +70,14 @@ def import_processed_data(filename, size, interval, file=None):
     for key in df.keys():
         if not key == 'date_time':
             df[key] = pd.to_numeric(df[key], downcast='float')
-    targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
+    # targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
 
     # - df normalization
     print("Normalizing X \n")
     df = normalize_data(df)
 
+    targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
+    
     df.drop('y1', axis=1, inplace=True)
     df.drop('y2', axis=1, inplace=True)
     df.drop('y3', axis=1, inplace=True)
