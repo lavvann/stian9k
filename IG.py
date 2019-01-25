@@ -9,12 +9,13 @@ from matplotlib.ticker import MaxNLocator
 
 # parameters
 bank = 10000.0          # Start amount EUR
-sg = 0.0                # spot gold price EUR
-m = 0.0                 # margin (deposit for each trade)
-sim_finished = False    # BOOL true when test set is completed
 goal = 1.003            # default training gain factor 
 spread = 0.3            # default IG spread $
 std_pos = 100           # default trade amount
+# declerations
+sg = 0.0                # spot gold price EUR
+m = 0.0                 # margin (deposit for each trade)
+sim_finished = False    # BOOL true when test set is completed
 
 
 def plot_result(y, span=5000, start=0):
@@ -50,7 +51,7 @@ def plot_result(y, span=5000, start=0):
     return plt
 
 
-""" ------- MAIN --------- """
+""" ------- MAIN --------------------------------------------------------------- """
 print("\n ------- IG simulation -------  \n")
 # check for input csv and read
 if not len(sys.argv) > 1:
@@ -60,17 +61,20 @@ try:
     df = pd.read_csv(sys.argv[1], header=0, index_col=False)
     df['date_time'] = df['date_time'].astype('datetime64[ns]')  # correct date_time type definition
     df.rename(columns={'Unnamed: 0':'ix'}, inplace=True)
-    y = df.iloc[:, [0, 2, 4, 5, 6]].values
-    print(y[0])
-    print("Finished opening file, Y has dimensions: " + str(df.shape) + "\n" + str(df.keys())+ "\n")
+    print("File opened:")
+    print("Expecting  : Shape:(any, 7)\n" + "Index(['ix', 'date_time', 'close', 'volume', 'y1', 'y2', 'y3'], dtype='object')")
+    print("Recieved   : Shape:" + str(df.shape) + "\n" + str(df.keys())+ "\n")
 except Exception as ex:
     print("Something went wrong when reading df from file, error code: " + str(ex))
     sim_finished = True
     exit()
 
+# Use numpy array instead of dataframe and disregard [date_time, volume] columns
+y = df.iloc[:, [0, 2, 4, 5, 6]].values
 y = np.c_[y, np.zeros(y.shape[0], dtype=float)]   # create column for bank
-bank_start = bank
+
 # Start trading
+bank_start = bank
 while not sim_finished:
     trading_l = False
     trading_s = False
@@ -86,7 +90,7 @@ while not sim_finished:
                 else:
                     position = int(bank/m1)
                     if position == 0:
-                        print("bankrupt")
+                        print("bankrupt\n")
                         break
                 l_start = sg
                 trading_l = True
@@ -103,7 +107,7 @@ while not sim_finished:
                 else:
                     position = int(bank/m1)
                     if position == 0:
-                        print("bankrupt")
+                        print("bankrupt\n")
                         break
                 s_start = sg
                 trading_s = True
@@ -128,7 +132,7 @@ while not sim_finished:
         y[i, 5] = bank
 
     sim_finished = True
-print("\nSimulation completed, bank: " + str(round(bank)) + ", gain: " + str(round(bank-bank_start)) + ", " + str(round(bank/bank_start*100)) + "% \n")
+print("\nSimulation completed, Bank: " + str(round(bank)) + "EUR, Gain: " + str(round(bank-bank_start)) + "EUR, Percentage: " + str(round(bank/bank_start*100)) + "% \n")
 plot = plot_result(y)
 plot.show()
 exit()
