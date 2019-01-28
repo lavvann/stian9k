@@ -106,7 +106,7 @@ def calc_y(df):
     num_cores = multiprocessing.cpu_count() - 1  # leave one free to not freeze machine
     df_split = np.array_split(df, num_cores)
     pool = multiprocessing.Pool(num_cores)
-    func = partial(traverse, params)
+    func = partial(binary_traverse, params)
     result = pool.map(func, df_split)
     y = np.concatenate(result, axis=0)
     pool.close()
@@ -146,7 +146,7 @@ def calc_y(df):
     return df, y, True
 
 
-def traverse(params, df):
+def binary_traverse(params, df):
     stop_loss, goal, hold, horizon = params[0], params[1], params[2], params[3]
     y = df.iloc[:, [0, 1]].values
     y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for long y bool
@@ -206,6 +206,17 @@ def traverse(params, df):
 
     print("done \n")
     return y
+    
+    
+def scalar_traverse(params, df):
+    # find min/max within 60min timeframe and calculate steep value "a" in y=ax 
+    # max = df.loc[i:i+60, 'test1'].max()
+    # min = max = df.loc[i:i+60, 'test1'].min()
+    # check max(abs(min), max)
+    # find index 'x' for respective max/min
+    # a = y/x where y = (min or max) - close(start)
+    
+    pass
 
 
 def normalize_data(df):

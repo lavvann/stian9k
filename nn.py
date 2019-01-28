@@ -16,13 +16,13 @@ from keras import backend as k
 
 
 # Parameters
-EPOCHS = 5
+EPOCHS = 2
 STEPS = 200
-LR = 0.0001       # Learning rate
+LR = 1e-7       # Learning rate
 INTERVAL = 1
-LSTM_LAYERS = 1
+LSTM_LAYERS = 0
 DENSE_LAYERS = 1
-NEURONS = 50
+NEURONS = 5
 
 
 # make tensorflow not allocate all gpu memory at start
@@ -42,7 +42,7 @@ if not success:
 print(str(dn[0]) + " \n")
 
 # Batch size
-BATCH_SIZE = int((len(dn)/STEPS)/2) # all data in each BATCH
+BATCH_SIZE = int((len(dn)/STEPS)/2) 
 # ---------------- TIME SERIES GENERATOR TEST ---------------------
 # Try generate batches using keras timeseriesgenerator
 train = TimeseriesGenerator(dn[:, [1]], dn[:, 3], length=STEPS, sampling_rate=1, stride=1,
@@ -64,36 +64,41 @@ print("\n\nLength of train: " + str(len(train)) + "\nShape of x: " + str(x0.shap
 # make NN model
 model = Sequential()
 # reduction ratio neuron each layer, last added layer neurons/2
-lstm_red = int((NEURONS/2)/LSTM_LAYERS)
-dense_red = int((NEURONS/2)/DENSE_LAYERS)
+if LSTM_LAYERS: lstm_red = int((NEURONS/2)/LSTM_LAYERS)
+if DENSE_LAYERS: dense_red = int((NEURONS/2)/DENSE_LAYERS)
 # add input lstm layer
-model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
-# model.add(LSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
+# model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
+model.add(LSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
 # add lstm layers
 for i in range(0, LSTM_LAYERS, 1):
     NEURONS = NEURONS - (i * lstm_red)
-    model.add(CuDNNLSTM(units=NEURONS, return_sequences=True))
+    model.add(LSTM(units=NEURONS, return_sequences=True))
 # add LSTM layer without return sequence to enable dense output
-model.add(CuDNNLSTM(units=NEURONS))
+model.add(LSTM(units=NEURONS))
 # add dense layers
 for i in range(0, DENSE_LAYERS, 1):
     NEURONS = NEURONS - (i * dense_red)
-    model.add(Dense(NEURONS, activation='relu'))
+    model.add(Dense(NEURONS, kernel_initializer='he_normal', activation='relu'))
 # add output layer
 model.add(Dense(1, activation='sigmoid'))
-# define optimizer
-sgd = optimizers.SGD(lr=LR, decay=1e-6, momentum=0.9, nesterov=True)
+# optimizer to use
+opt = optimizers.SGD(lr=LR, decay=1e-6, momentum=0.9, nesterov=True)
 # compile model
-model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=["accuracy"])
-# train model
+model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+# print weights before training
+# for i in range(0, len(model.layers), 1):
+#     print(str(model.layers[i].get_weights()[1]))
+# print model structure
 print(model.summary())
+
+# start training
 history = model.fit_generator(train, epochs=EPOCHS, validation_data=test)
 print("\n")
 # evaluate model with test data
-print(model.evaluate_generator(test))
-print("\n")
+# print(model.evaluate_generator(test))
+# print("\n")
 # testPredict = model.predict_generator(x_test)
-
+#
 # Plot training & validation accuracy values
 plt.plot(history.history['acc'])
 plt.plot(history.history['val_acc'])

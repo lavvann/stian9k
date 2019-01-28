@@ -9,7 +9,7 @@ from matplotlib.ticker import MaxNLocator
 
 # parameters
 bank = 10000.0          # Start amount EUR
-goal = 1.003            # default training gain factor 
+goal = 1.002            # default training gain factor 
 spread = 0.3            # default IG spread $
 std_pos = 100           # default trade amount
 # declerations
