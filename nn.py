@@ -42,14 +42,14 @@ if not success:
 print(str(dn[0]) + " \n")
 
 # Batch size
-BATCH_SIZE = int((len(dn)/STEPS)/2) 
+BATCH_SIZE = int((len(dn)/STEPS)/2)
 # ---------------- TIME SERIES GENERATOR TEST ---------------------
 # Try generate batches using keras timeseriesgenerator
-train = TimeseriesGenerator(dn[:, [1]], dn[:, 3], length=STEPS, sampling_rate=1, stride=1,
+train = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
                             start_index=0, end_index=int(len(dn) * 0.8),
                             shuffle=True , reverse=False, batch_size=BATCH_SIZE)
 
-test = TimeseriesGenerator(dn[:, [1]], dn[:, 3], length=STEPS, sampling_rate=1, stride=1,
+test = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
                             start_index=round(len(dn)*0.8), end_index=(len(dn)-1),
                             shuffle=False , reverse=False, batch_size=int(BATCH_SIZE*0.8))
 x0, y0 = train[0]
@@ -58,7 +58,7 @@ x1, y1 = train[1]
 # print("x0 :" + str(x0) + "\n")
 # print("y0 :" + str(y0) + "\n")
 # print("x1 :" + str(x1) + "\n")
-# print("y1 :" + str(y1) + "\n")
+print("y1 :" + str(y1) + "\n")
 print("\n\nLength of train: " + str(len(train)) + "\nShape of x: " + str(x0.shape) + "\n")
 
 # make NN model
@@ -84,7 +84,8 @@ model.add(Dense(1, activation='sigmoid'))
 # optimizer to use
 opt = optimizers.SGD(lr=LR, decay=1e-6, momentum=0.9, nesterov=True)
 # compile model
-model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+# model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
+model.compile(loss='mse', optimizer=opt, metrics=["accuracy"])
 # print weights before training
 # for i in range(0, len(model.layers), 1):
 #     print(str(model.layers[i].get_weights()[1]))

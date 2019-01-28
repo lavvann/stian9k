@@ -70,14 +70,13 @@ def import_processed_data(filename, size, interval, file=None):
     for key in df.keys():
         if not key == 'date_time':
             df[key] = pd.to_numeric(df[key], downcast='float')
-    # targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
 
     # - df normalization
     print("Normalizing X \n")
     df = normalize_data(df)
 
     targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
-    
+
     df.drop('y1', axis=1, inplace=True)
     df.drop('y2', axis=1, inplace=True)
     df.drop('y3', axis=1, inplace=True)
@@ -91,22 +90,28 @@ def import_processed_data(filename, size, interval, file=None):
 def calc_y(df):
     print("\n creating Y \n")
     # - inputs
-    stop_loss = input("enter stop loss (default is 0.993): ")
-    stop_loss = 0.993 if stop_loss == '' else float(stop_loss)
-    goal = input("enter target goal (default is 1.003): ")
-    goal = 1.003 if goal == '' else float(goal)
-    hold = input("enter neutral variance (default is 0.002): ")
-    hold = 0.002 if hold == '' else float(hold)
-    horizon = input("enter prediction horizon (default is one 1 hour): ")
-    horizon = 1 if horizon == '' else int(horizon)
-    params = [stop_loss, goal, hold, horizon]
+    strategy = input("enter strategy, 1 for binary, 2 for gradient (default is binary): ")
+    strategy = 1 if strategy == '' else int(strategy)
+    if strategy == 1:
+        stop_loss = input("enter stop loss (default is 0.993): ")
+        stop_loss = 0.993 if stop_loss == '' else float(stop_loss)
+        goal = input("enter target goal (default is 1.003): ")
+        goal = 1.003 if goal == '' else float(goal)
+        hold = input("enter neutral variance (default is 0.002): ")
+        hold = 0.002 if hold == '' else float(hold)
+        horizon = input("enter prediction horizon (default is one 1 hour): ")
+        horizon = 1 if horizon == '' else int(horizon)
+        params = [stop_loss, goal, hold, horizon]
+        func = partial(binary_traverse, params)
+    else:
+        params = []
+        func = partial(gradient_traverse, params)
     print("\n")
 
     # Multiprocessing:
     num_cores = multiprocessing.cpu_count() - 1  # leave one free to not freeze machine
     df_split = np.array_split(df, num_cores)
     pool = multiprocessing.Pool(num_cores)
-    func = partial(binary_traverse, params)
     result = pool.map(func, df_split)
     y = np.concatenate(result, axis=0)
     pool.close()
@@ -206,17 +211,36 @@ def binary_traverse(params, df):
 
     print("done \n")
     return y
-    
-    
-def scalar_traverse(params, df):
-    # find min/max within 60min timeframe and calculate steep value "a" in y=ax 
-    # max = df.loc[i:i+60, 'test1'].max()
-    # min = max = df.loc[i:i+60, 'test1'].min()
-    # check max(abs(min), max)
-    # find index 'x' for respective max/min
-    # a = y/x where y = (min or max) - close(start)
-    
-    pass
+
+
+def gradient_traverse(params, df):
+    print(str(len(df.index)))
+    y = df.iloc[:, [0, 1]].values
+    y = np.c_[y, np.zeros(y.shape[0], dtype=float)]   # create column for gradient y
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for spare y bool
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for spare y bool
+    n = len(df.index)
+    for i in range(0, len(df.index)-1, 1):
+        # progressbar
+        j = (i + 1) / n
+        sys.stdout.write('\r')
+        sys.stdout.write("[%-20s] %d%%" % ('=' * int(20 * j), 100 * j))
+        sys.stdout.write('\r')
+        sys.stdout.flush()
+        spot = df.iloc[i, 1]
+        # find min/max within 60min timeframe and calculate gradient "a" in y=ax 
+        top = df.iloc[i:i+59, 1].max()
+        index_top = df.iloc[i:i+59, 1].idxmax()
+        bot = df.iloc[i:i+59, 1].min()
+        index_bot = df.iloc[i:i+59, 1].idxmin()
+        # find and calc gradient
+        if (top-spot) > (spot-bot) and not index_top == i:
+            y[i, 2] = (top-spot)
+        elif (spot-bot) > (top-spot) and not index_bot  == i:
+            y[i, 2] = (bot-spot)
+
+    print("done \n")
+    return y
 
 
 def normalize_data(df):
@@ -226,7 +250,7 @@ def normalize_data(df):
     return df
 
 
-def plot_result(targets, span=1000, start=0):
+def plot_result(targets, span=1000, start=0, strategy=1):
     # Plotting:
     fig, ax = plt.subplots()
     x = targets[start:(start + span), 0]
@@ -240,13 +264,22 @@ def plot_result(targets, span=1000, start=0):
     ax.xaxis.set_major_locator(MaxNLocator(20))     # number of x-axis ticks
     # x.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M:%S"))    # x-axis ticks visual format
 
-    for r in targets[start:(start+span)]:
-        if r[2]:
-            plt.axvline(x=r[0], color='g', alpha=0.2)
-        if r[3]:
-            plt.axvline(x=r[0], color='r', alpha=0.2)
-        if r[4]:
-            plt.axvline(x=r[0], color='lightyellow', alpha=0.4)
+    if strategy == 1:
+        for r in targets[start:(start+span)]:
+            if r[2]:
+                plt.axvline(x=r[0], color='g', alpha=0.2)
+            if r[3]:
+                plt.axvline(x=r[0], color='r', alpha=0.2)
+            if r[4]:
+                plt.axvline(x=r[0], color='lightyellow', alpha=0.4)
+    else:
+        # axis y2
+        ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+        ax2.set_ylabel('gradient', color='r')  # we already handled the x-label with ax1
+        y2 = targets[start:(start + span), 2]
+        ax2.plot(x, y2, 'r')
+        ax2.tick_params(axis='y', labelcolor='r')
+
     plt.draw()
     return plt
 
@@ -283,11 +316,13 @@ def data_menu():
             pre_processed_data, target, format_data_done = calc_y(raw_data)
             data_menu()
         elif choice == '4' and format_data_done:
+            strategy = input("specify strategy (default is 1 for binary): \n")
+            strategy = 1 if strategy == '' else int(strategy)
             span = input("specify span (default is 5000): \n")
             span = 5000 if span == '' else int(span)
             start = input("specify start (default is index 0): \n")
             start = 0 if start == '' else int(start)
-            plt = plot_result(target, span, start)
+            plt = plot_result(target, span, start, strategy)
             plt.show()
             data_menu()
         else:
