@@ -73,7 +73,7 @@ def import_processed_data(filename, size, interval, file=None):
 
     # - df normalization
     print("Normalizing X \n")
-    df = normalize_data(df)
+    # df = normalize_data(df)
 
     targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
 

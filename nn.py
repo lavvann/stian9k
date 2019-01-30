@@ -13,16 +13,18 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.contrib.data.python.ops import sliding
 from keras import backend as k
+from sklearn.preprocessing import MinMaxScaler
 
 
 # Parameters
-EPOCHS = 1
-STEPS = 200
-LR = 1e-6       # Learning rate
-INTERVAL = 1
+STEPS = 200     # amount of timesteps in each sequence
+LR = 1e-3     # Learning rate
+INTERVAL = 1    # intervall between timesteps in sequence?
+STRIDE = int(STEPS/2)  # time intervall between sequences
 LSTM_LAYERS = 0
-DENSE_LAYERS = 1
-NEURONS = 5
+DENSE_LAYERS = 0
+NEURONS = 50
+EPOCHS = 500
 
 
 # make tensorflow not allocate all gpu memory at start
@@ -41,25 +43,44 @@ if not success:
     exit()
 print(str(dn[0]) + " \n")
 
-# Batch size
-BATCH_SIZE = int((len(dn)/STEPS)/2)
+# Batch size, sequnce size:
+BATCH_SIZE_TRAIN = int((len(dn)/STEPS)/2)
+BATCH_SIZE_TEST = int((len(dn)/STEPS))
+STEPS = STEPS*INTERVAL
+END_INDEX_TRAIN = int(len(dn) * 0.8)
+# END_INDEX_TRAIN = (len(dn)-1)
+START_INDEX_TEST = round(len(dn)*0.8-1)
+# START_INDEX_TEST = 0
+
+# Normalize X data:
+#v = dn[:, 1]
+#v_max = v.max()
+#v_min = v.min()
+#dn[:, 1] = (v - v_min) / (v_max - v_min)    
+scaler = MinMaxScaler(feature_range=(0, 1))  
+scaler = scaler.fit(dn[:, [1]])
+normalized = scaler.transform(dn[:, [1]])
+dn[:, 1] = normalized[:, 0]
 # ---------------- TIME SERIES GENERATOR TEST ---------------------
 # Try generate batches using keras timeseriesgenerator
-train = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
-                            start_index=0, end_index=int(len(dn) * 0.8),
-                            shuffle=True , reverse=False, batch_size=BATCH_SIZE)
+# need to shift Y one step down to mach y to x (defaults to one time step down)
+dn[:, 2] = np.roll(dn[:, 2], 1)
 
-test = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
-                            start_index=round(len(dn)*0.8), end_index=(len(dn)-1),
-                            shuffle=False , reverse=False, batch_size=int(BATCH_SIZE*0.8))
+train = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=INTERVAL, stride=STRIDE,
+                            start_index=0, end_index=END_INDEX_TRAIN,
+                            shuffle=False , reverse=False, batch_size=BATCH_SIZE_TRAIN)
+
+val = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=INTERVAL, stride=STRIDE,
+                            start_index=START_INDEX_TEST, end_index=(len(dn)-1),
+                            shuffle=False , reverse=False, batch_size=BATCH_SIZE_TEST)
 x0, y0 = train[0]
-x1, y1 = test[0]
+x1, y1 = val[0]
 # print("x0 :" + str(x0) + "\n")
 # print("y0 :" + str(y0) + "\n")
 # print("x1 :" + str(x1) + "\n")
 # print("y1 :" + str(y1) + "\n")
 print("\n\nLength of train: " + str(len(train)) + ", Shape of x: " + str(x0.shape) + ", Shape of y: " + str(y0.shape))
-print("Length of test: " + str(len(test)) + ", Shape of x: " + str(x1.shape) + ", Shape of y: " + str(y1.shape) + "\n")
+print("Length of val: " + str(len(val)) + ", Shape of x: " + str(x1.shape) + ", Shape of y: " + str(y1.shape) + "\n")
 # make NN model
 model = Sequential()
 # reduction ratio neuron each layer, last added layer neurons/2
@@ -67,11 +88,11 @@ if LSTM_LAYERS: lstm_red = int((NEURONS/2)/LSTM_LAYERS)
 if DENSE_LAYERS: dense_red = int((NEURONS/2)/DENSE_LAYERS)
 # add input lstm layer
 # model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
-model.add(LSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
+model.add(LSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True, activation='relu'))
 # add lstm layers
 for i in range(0, LSTM_LAYERS, 1):
     NEURONS = NEURONS - (i * lstm_red)
-    model.add(LSTM(units=NEURONS, return_sequences=True))
+    model.add(LSTM(units=NEURONS, return_sequences=True, activation='relu'))
 # add LSTM layer without return sequence to enable dense output
 model.add(LSTM(units=NEURONS))
 # add dense layers
@@ -79,12 +100,12 @@ for i in range(0, DENSE_LAYERS, 1):
     NEURONS = NEURONS - (i * dense_red)
     model.add(Dense(NEURONS, kernel_initializer='he_normal', activation='relu'))
 # add output layer
-model.add(Dense(1, activation='adam'))
+model.add(Dense(1))
 # optimizer to use
 opt = optimizers.SGD(lr=LR, decay=1e-6, momentum=0.9, nesterov=True)
 # compile model
 # model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
-model.compile(loss='mse', optimizer=opt, metrics=["accuracy"])
+model.compile(loss='mse', optimizer='nadam')
 """ print weights before training
 # for i in range(0, len(model.layers), 1):
 #     print(str(model.layers[i].get_weights()[1]))
@@ -93,21 +114,22 @@ model.compile(loss='mse', optimizer=opt, metrics=["accuracy"])
 print(model.summary())
 
 # start training
-history = model.fit_generator(train, epochs=EPOCHS, validation_data=test)
+history = model.fit_generator(train, epochs=EPOCHS, validation_data=val)
 print("\n")
 # evaluate model with test data
 # print(model.evaluate_generator(test))
 # print("\n")
-# testPredict = model.predict_generator(x_test)
+testPredict = model.predict_generator(val)
+print(testPredict)
 #
 # Plot training & validation accuracy values
-plt.plot(history.history['acc'])
-plt.plot(history.history['val_acc'])
+#plt.plot(history.history['acc'])
+#plt.plot(history.history['val_acc'])
 plt.title('Model accuracy')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Test'], loc='upper left')
-plt.show()
+#plt.show()
 
 # Plot training & validation loss values
 plt.plot(history.history['loss'])
