@@ -214,7 +214,6 @@ def binary_traverse(params, df):
 
 
 def gradient_traverse(params, df):
-    print(str(len(df.index)))
     y = df.iloc[:, [0, 1]].values
     y = np.c_[y, np.zeros(y.shape[0], dtype=float)]   # create column for gradient y
     y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for spare y bool
