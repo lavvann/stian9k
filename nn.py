@@ -20,11 +20,11 @@ from sklearn.preprocessing import MinMaxScaler
 STEPS = 200    # amount of timesteps in each sequence
 LR = 1e-3     # Learning rate
 INTERVAL = 5    # intervall between timesteps in sequence?
-STRIDE = int(STEPS/2)  # time intervall between sequences
-LSTM_LAYERS = 5
+STRIDE = int(STEPS*INTERVAL)  # intervall for collecting y and intervall between sequences
+LSTM_LAYERS = 50
 DENSE_LAYERS = 0
-NEURONS = 20
-EPOCHS = 400
+NEURONS = 150
+EPOCHS = 2000
 
 
 # make tensorflow not allocate all gpu memory at start
@@ -44,7 +44,7 @@ if not success:
 print(str(dn[0]) + " \n")
 
 # Batch size, sequnce size:
-BATCH_SIZE_TRAIN = round((len(dn)/STEPS)/4)
+BATCH_SIZE_TRAIN = round((len(dn)/STEPS)/20)
 BATCH_SIZE_TEST = round(BATCH_SIZE_TRAIN/5)
 STEPS = STEPS*INTERVAL
 END_INDEX_TRAIN = int(len(dn) * 0.8)
@@ -73,7 +73,7 @@ val = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=INTE
                             shuffle=False , reverse=False, batch_size=BATCH_SIZE_TEST)
 x0, y0 = train[0]
 x1, y1 = val[0]
-print("y0 :" + str(y0) + "\n")
+# print("y0 :" + str(y0) + "\n")
 # print("x1 :" + str(x1) + "\n")
 # print("y1 :" + str(y1) + "\n")
 print("\n\nLength of train: " + str(len(train)) + ", Shape of x: " + str(x0.shape) + ", Shape of y: " + str(y0.shape))
@@ -89,7 +89,6 @@ model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS/INTERVAL, 1 ), return_sequ
 # add lstm layers
 for i in range(0, LSTM_LAYERS, 1):
     NEURONS = NEURONS - int(lstm_red)
-    print(str(NEURONS))
     model.add(CuDNNLSTM(units=NEURONS, return_sequences=True))
 # add LSTM layer without return sequence to enable dense output
 model.add(CuDNNLSTM(units=NEURONS))
@@ -118,9 +117,8 @@ print("\n")
 # evaluate model with test data
 # print(model.evaluate_generator(test))
 # print("\n")
-testPredict = model.predict_generator(val)
-print(testPredict)
-print("\ny0 :" + str(y0) + "\n")
+# testPredict = model.predict_generator(val)
+# print(testPredict)
 print("\n\nLength of train: " + str(len(train)) + ", Shape of x: " + str(x0.shape) + ", Shape of y: " + str(y0.shape))
 print("Length of val: " + str(len(val)) + ", Shape of x: " + str(x1.shape) + ", Shape of y: " + str(y1.shape) + "\n")
 #
