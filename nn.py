@@ -17,10 +17,9 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 # Parameters
-STEPS = 200    # amount of timesteps in each sequence
-LR = 1e-3     # Learning rate
-INTERVAL = 5    # intervall between timesteps in sequence?
-STRIDE = int(STEPS*INTERVAL)  # intervall for collecting y and intervall between sequences
+STEPS = 200      # amount of timesteps in each sequence
+# LR = 1e-3        # Learning rate
+INTERVAL = 5     # intervall between timesteps in sequence?
 LSTM_LAYERS = 50
 DENSE_LAYERS = 0
 NEURONS = 150
@@ -37,7 +36,7 @@ k.tensorflow_backend.set_session(tf.Session(config=config))
 # check for input csv
 if not len(sys.argv) > 1:
     exit()
-df, dn, success = data.import_processed_data("", 0, 0, sys.argv[1])
+df, dn, success = data.import_processed_data("", 0, INTERVAL, sys.argv[1])
 if not success:
     print("Could not import file, exiting.\n")
     exit()
@@ -46,29 +45,25 @@ print(str(dn[0]) + " \n")
 # Batch size, sequnce size:
 BATCH_SIZE_TRAIN = round((len(dn)/STEPS)/20)
 BATCH_SIZE_TEST = round(BATCH_SIZE_TRAIN/5)
-STEPS = STEPS*INTERVAL
 END_INDEX_TRAIN = int(len(dn) * 0.8)
 START_INDEX_TEST = round(len(dn)*0.8-1)
 
 # Normalize X data:
-#v = dn[:, 1]
-#v_max = v.max()
-#v_min = v.min()
-#dn[:, 1] = (v - v_min) / (v_max - v_min)    
-scaler = MinMaxScaler(feature_range=(0, 1))  
+scaler = MinMaxScaler(feature_range=(0, 1))
 scaler = scaler.fit(dn[:, [1]])
 normalized = scaler.transform(dn[:, [1]])
 dn[:, 1] = normalized[:, 0]
+
 # ---------------- TIME SERIES GENERATOR TEST ---------------------
 # Try generate batches using keras timeseriesgenerator
 # need to shift Y one step down to mach y to x (defaults to one time step down)
 dn[:, 2] = np.roll(dn[:, 2], 1)
 
-train = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=INTERVAL, stride=STRIDE,
+train = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
                             start_index=0, end_index=END_INDEX_TRAIN,
                             shuffle=False , reverse=False, batch_size=BATCH_SIZE_TRAIN)
 
-val = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=INTERVAL, stride=STRIDE,
+val = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
                             start_index=START_INDEX_TEST, end_index=(len(dn)-1),
                             shuffle=False , reverse=False, batch_size=BATCH_SIZE_TEST)
 x0, y0 = train[0]
@@ -104,10 +99,6 @@ opt = optimizers.nadam(lr=0.001, epsilon=None)
 # compile model
 # model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 model.compile(loss='mse', optimizer=opt)
-""" print weights before training
-# for i in range(0, len(model.layers), 1):
-#     print(str(model.layers[i].get_weights()[1]))
-# print model structure"""
 
 print(model.summary())
 
@@ -142,39 +133,3 @@ plt.show()
 
 exit()
 
-"""
-# --------------- DATA GENERATOR TEST -----------------------------
-sequence = dn[:, 1].reshape(len(dn), 1)  #
-labels = dn[:, 3]
-#labels = dn[:, 3].tolist()  #
-
-# create TensorFlow Dataset object
-data = tf.data.Dataset.from_tensor_slices((sequence, labels))
-
-# sliding window batch
-window_size = 10
-window_shift = 1
-data = data.apply(sliding.sliding_window_batch(window_size=window_size, window_shift=window_shift))
-# data = data.shuffle(1000, reshuffle_each_iteration=False)
-data = data.batch(1)
-
-
-# WARNING:tensorflow:From /home/stian/.local/lib/python3.6/site-packages/tensorflow/python/util/deprecation.py:488: sliding_window_batch (from tensorflow.contrib.data.python.ops.sliding) is deprecated and will be removed in a future version.
-# Instructions for updating:
-# Use `tf.data.Dataset.window(size=window_size, shift=window_shift, stride=window_stride).flat_map(lambda x: x.batch(window.size))` instead.
-
-
-#iter = dataset.make_initializable_iterator()
-iter = tf.data.Iterator.from_structure(data.output_types, data.output_shapes)
-el = iter.get_next()
-
-# create initialization ops
-init_op = iter.make_initializer(data)
-
-NR_EPOCHS = 1
-with tf.Session() as sess:
-    for e in range (NR_EPOCHS):
-        print("\nepoch: ", e, "\n")
-        sess.run(init_op)
-        print("1  ", sess.run(el))
-"""

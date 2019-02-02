@@ -64,7 +64,8 @@ def import_processed_data(filename, size, interval, file=None):
     # Select range of dataset
     if size:
         df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
-
+    if not interval == 1:
+        df = df.iloc[0:len(df.index)-1:interval]
     # copy Y data to targets
     print("Finished opening file, data has dimensions: " + str(df.shape) + "\n" + str(df.keys()) + "\n")
     for key in df.keys():
