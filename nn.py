@@ -79,7 +79,7 @@ model = Sequential()
 if LSTM_LAYERS: lstm_red = int((NEURONS/2)/LSTM_LAYERS)
 if DENSE_LAYERS: dense_red = int((NEURONS/2)/DENSE_LAYERS)
 # add input lstm layer
-model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS/INTERVAL, 1 ), return_sequences=True))
+model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
 # model.add(LSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True, activation='relu'))
 # add lstm layers
 for i in range(0, LSTM_LAYERS, 1):
