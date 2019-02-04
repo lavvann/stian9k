@@ -94,7 +94,7 @@ for i in range(0, DENSE_LAYERS, 1):
 # add output layer
 model.add(Dense(1))
 # optimizer to use
-opt = optimizers.SGD(lr=LR, decay=1e-6, momentum=0.9, nesterov=True)
+# opt = optimizers.SGD(lr=LR, decay=1e-6, momentum=0.9, nesterov=True)
 opt = optimizers.nadam(lr=0.001, epsilon=None)
 # compile model
 # model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
