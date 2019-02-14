@@ -12,6 +12,7 @@ from datetime import datetime
 import multiprocessing
 from functools import partial
 import sys
+import trade_strategy
 
 """ variables """
 data_load_done = False
@@ -28,7 +29,7 @@ def import_raw_data(file_name):
     abs_file_path = os.path.join(script_dir + "/data/" + file_name)
 
     # Select fields
-    fields = ['date', 'time', 'close', 'volume']
+    fields = ['date', 'time', 'high', 'low', 'close', 'volume']
 
     # Read file
     print("Opening file and merging date and time column \n \n")
@@ -38,10 +39,24 @@ def import_raw_data(file_name):
         print("Something went wrong when reading df from file, error code: " + str(ex))
         return
 
+    # calc mean price (high+low)/2
+    df['close'] = (df['high']+df['low'])/2
+    
+    # throw columns not used anymore
+    df.drop('high', axis=1, inplace=True)
+    df.drop('low', axis=1, inplace=True)
+
+    # downcast from float64 to float32 to reduse memory usage
+    for key in df.keys():
+        if not key == 'date_time':
+            df[key] = pd.to_numeric(df[key], downcast='float')
+            
+            
     print("Finished opening file \ndata has dimensions: " + str(df.shape) + "\n\n")
+    print("data has types: " + str(df.dtypes))
     print("raw data imported")
     print("-----------------------------------------------------------\n")
-
+    
     return df, True
 
 
@@ -68,13 +83,14 @@ def import_processed_data(filename, size, interval, file=None):
         df = df.iloc[0:len(df.index)-1:interval]
     # copy Y data to targets
     print("Finished opening file, data has dimensions: " + str(df.shape) + "\n" + str(df.keys()) + "\n")
-    for key in df.keys():
-        if not key == 'date_time':
-            df[key] = pd.to_numeric(df[key], downcast='float')
 
     # - df normalization
     print("Normalizing X \n")
-    # df = normalize_data(df)
+   
+    # downcast from float64 to float32 to reduse memory usage
+    for key in df.keys():
+        if not key == 'date_time':
+            df[key] = pd.to_numeric(df[key], downcast='float')
 
     targets = df.iloc[:, [0, 2, 4, 5, 6]].values  # index, close, buy, short, hold
 
@@ -83,6 +99,7 @@ def import_processed_data(filename, size, interval, file=None):
     df.drop('y3', axis=1, inplace=True)
 
     print("Finished opening file \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(targets.shape))
+    print("X has types: " + str(df.dtypes) + ", Y has dimensions: " + str(targets.dtype))
     print("-----------------------------------------------------------\n")
 
     return df, targets, True
@@ -101,12 +118,14 @@ def calc_y(df):
         hold = input("enter neutral variance (default is 0.002): ")
         hold = 0.002 if hold == '' else float(hold)
         horizon = input("enter prediction horizon (default is one 1 hour): ")
-        horizon = 1 if horizon == '' else int(horizon)
+        horizon = 60 if horizon == '' else int(horizon)
         params = [stop_loss, goal, hold, horizon]
-        func = partial(binary_traverse, params)
+        func = partial(trade_strategy.binary_traverse, params)
     else:
-        params = []
-        func = partial(gradient_traverse, params)
+        horizon = input("enter prediction horizon (default is one 1 hour): ")
+        horizon = 60 if horizon == '' else int(horizon)
+        params = [horizon]
+        func = partial(trade_strategy.gradient_traverse, params)
     print("\n")
 
     # Multiprocessing:
@@ -152,95 +171,6 @@ def calc_y(df):
     return df, y, True
 
 
-def binary_traverse(params, df):
-    stop_loss, goal, hold, horizon = params[0], params[1], params[2], params[3]
-    y = df.iloc[:, [0, 1]].values
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for long y bool
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for short y bool
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for hold y bool
-    n = len(df.index)
-
-    for i in range(0, len(df.index)-1, 1):
-        # progressbar
-        j = (i + 1) / n
-        sys.stdout.write('\r')
-        sys.stdout.write("[%-20s] %d%%" % ('=' * int(20 * j), 100 * j))
-        sys.stdout.write('\r')
-        sys.stdout.flush()
-
-        # initialize variables
-        date_time = df.iloc[i, 0]
-        open = df.iloc[i, 1]
-        date_search = df.iloc[i + 1, 0]
-        short_result_found = 0
-        hold_search = 1
-
-        for k in range(i, len(df.index)-1, 1):
-            # Check if one day as gone since buy/short
-            within_horizon = datetime.strptime(str(date_search), "%Y-%m-%d %H:%M:%S") <= datetime.strptime(
-                str(date_time + timedelta(hours=horizon)), "%Y-%m-%d %H:%M:%S")
-            date_search = df.iloc[k+1, 0]
-            # Check if price reaches target (buy)
-            if within_horizon:
-                close = df.iloc[k, 1]
-                if close / open >= goal:
-                    y[i, 2] = 1
-                elif close / open <= stop_loss:
-                    y[i, 2] = 0
-
-            # Check if price is neutral (hold)
-            if within_horizon and hold_search:
-                if close / open >= 1 + hold or close / open <= 1 - hold:
-                    y[i, 4] = 0
-                    hold_search = 0
-            elif not within_horizon and hold_search:
-                y[i, 4] = 1
-
-            # Check if price reaches target (short)
-            if within_horizon:
-                if close / open <= 1 / goal:
-                    y[i, 3] = 1
-                    short_result_found = 1
-                elif close / open >= stop_loss:
-                    y[i, 3] = 0
-                    short_result_found = 1
-            elif not within_horizon and short_result_found:
-                break
-            elif not within_horizon and not short_result_found:
-                y[i, 3] = 0
-                break
-
-    print("done \n")
-    return y
-
-
-def gradient_traverse(params, df):
-    y = df.iloc[:, [0, 1]].values
-    y = np.c_[y, np.zeros(y.shape[0], dtype=float)]   # create column for gradient y
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for spare y bool
-    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for spare y bool
-    n = len(df.index)
-    for i in range(0, len(df.index)-1, 1):
-        # progressbar
-        j = (i + 1) / n
-        sys.stdout.write('\r')
-        sys.stdout.write("[%-20s] %d%%" % ('=' * int(20 * j), 100 * j))
-        sys.stdout.write('\r')
-        sys.stdout.flush()
-        spot = df.iloc[i, 1]
-        # find min/max within 60min timeframe and calculate gradient "a" in y=ax 
-        top = df.iloc[i:i+59, 1].max()
-        index_top = df.iloc[i:i+59, 1].idxmax()
-        bot = df.iloc[i:i+59, 1].min()
-        index_bot = df.iloc[i:i+59, 1].idxmin()
-        # find and calc gradient
-        if (top-spot) > (spot-bot) and not index_top == i:
-            y[i, 2] = (top-spot)
-        elif (spot-bot) > (top-spot) and not index_bot  == i:
-            y[i, 2] = (bot-spot)
-
-    print("done \n")
-    return y
 
 
 def normalize_data(df):
