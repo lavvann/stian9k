@@ -4,6 +4,8 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+from datetime import timedelta
+from datetime import datetime
 
 """ THIS FILE CONTAINS DIFFERENT DATA EVALUATON STRATEGIES 
 - Binary traverse: Check if value has changed above threshold within horizon. y1,y2,y3: binary buy, short, hold
@@ -40,7 +42,7 @@ def binary_traverse(params, df):
                 str(date_time + timedelta(minutes=horizon)), "%Y-%m-%d %H:%M:%S")
             date_search = df.iloc[k+1, 0]
             # Check if price reaches target (buy)
-            if within_horizon:
+            if within_horizon and not y[i,2] == 1:
                 close = df.iloc[k, 1]
                 if close / open >= goal:
                     y[i, 2] = 1
@@ -56,18 +58,58 @@ def binary_traverse(params, df):
                 y[i, 4] = 1
 
             # Check if price reaches target (short)
-            if within_horizon:
+            if within_horizon and not y[i,3] == 1:
                 if close / open <= 1 / goal:
                     y[i, 3] = 1
                     short_result_found = 1
                 elif close / open >= stop_loss:
                     y[i, 3] = 0
                     short_result_found = 1
-            elif not within_horizon and short_result_found:
+            else:
                 break
-            elif not within_horizon and not short_result_found:
-                y[i, 3] = 0
-                break
+
+    print("done \n")
+    return y
+    
+    
+def binary_traverse2(params, df):
+    stop_loss, goal, hold, horizon = params[0], params[1], params[2], params[3]
+    y = df.iloc[:, [0, 1]].values
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for long y bool
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for short y bool
+    y = np.c_[y, np.zeros(y.shape[0], dtype=int)]   # create column for hold y bool
+    n = len(df.index)
+
+    for i in range(0, len(df.index)-1, 1):
+        # progressbar
+        j = (i + 1) / n
+        sys.stdout.write('\r')
+        sys.stdout.write("[%-20s] %d%%" % ('=' * int(20 * j), 100 * j))
+        sys.stdout.write('\r')
+        sys.stdout.flush()
+
+        # initialize variables
+        date_time = df.iloc[i, 0]
+        open = df.iloc[i, 1]
+        date_search = df.iloc[i + 1, 0]
+        short_result_found = 0
+        hold_search = 1
+        
+        # Y1: find min/max within horizon and calculate gradient "a" in y=ax 
+        top = df.iloc[i:i+(horizon-1), 1].max()
+        index_top = df.iloc[i:i+(horizon-1), 1].idxmax()
+        bot = df.iloc[i:i+(horizon-1), 1].min()
+        index_bot = df.iloc[i:i+(horizon-1), 1].idxmin()
+        
+        # buy if target is reached before stop loss
+        if top >= goal*open and not (bot < open*stop_loss and index_bot > index_top):
+            y[i, 2] = 1
+        # short if target is reached before stop loss
+        elif bot <= open*(1/goal) and not (top > open*(1/stop_loss) and index_top < index_bot):
+            y[i, 3] = 1
+        # hold
+        elif top <= open*(1+hold) and bot >= open*(1-hold):
+            y[i, 4] = 1
 
     print("done \n")
     return y

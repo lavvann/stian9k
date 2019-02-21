@@ -45,12 +45,6 @@ def import_raw_data(file_name):
     # throw columns not used anymore
     df.drop('high', axis=1, inplace=True)
     df.drop('low', axis=1, inplace=True)
-
-    # downcast from float64 to float32 to reduse memory usage
-    for key in df.keys():
-        if not key == 'date_time':
-            df[key] = pd.to_numeric(df[key], downcast='float')
-            
             
     print("Finished opening file \ndata has dimensions: " + str(df.shape) + "\n\n")
     print("data has types: " + str(df.dtypes))
@@ -81,7 +75,7 @@ def import_processed_data(filename, size, interval, file=None):
         df = df.iloc[(len(df.index)-(size*interval)):(len(df.index)):interval]
     if not interval == 1:
         df = df.iloc[0:len(df.index)-1:interval]
-    # copy Y data to targets
+        
     print("Finished opening file, data has dimensions: " + str(df.shape) + "\n" + str(df.keys()) + "\n")
 
     # - df normalization
@@ -98,7 +92,7 @@ def import_processed_data(filename, size, interval, file=None):
     df.drop('y2', axis=1, inplace=True)
     df.drop('y3', axis=1, inplace=True)
 
-    print("Finished opening file \nX has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(targets.shape))
+    print("Finished opening file \ndf has dimensions: " + str(df.shape) + ", Y has dimensions: " + str(targets.shape))
     print("X has types: " + str(df.dtypes) + ", Y has dimensions: " + str(targets.dtype))
     print("-----------------------------------------------------------\n")
 
@@ -120,7 +114,7 @@ def calc_y(df):
         horizon = input("enter prediction horizon (default is one 1 hour): ")
         horizon = 60 if horizon == '' else int(horizon)
         params = [stop_loss, goal, hold, horizon]
-        func = partial(trade_strategy.binary_traverse, params)
+        func = partial(trade_strategy.binary_traverse2, params)
     else:
         horizon = input("enter prediction horizon (default is one 1 hour): ")
         horizon = 60 if horizon == '' else int(horizon)
@@ -136,6 +130,12 @@ def calc_y(df):
     y = np.concatenate(result, axis=0)
     pool.close()
     pool.join()
+    
+    # Sparsity if binary traverse
+    if strategy == 1:
+        print("Sparsety, buy Y1: " + str(np.sum(y[:,2])/len(y)*100) + "% \n")
+        print("Sparsety, short Y2: " + str(np.sum(y[:,3])/len(y)*100) + "% \n")
+        print("Sparsety, hold Y3: " + str(np.sum(y[:,4])/len(y)*100) + "% \n")
 
     # ad ix column to y
     ix = np.arange(0, len(y), 1)
@@ -169,8 +169,6 @@ def calc_y(df):
     print("-----------------------------------------------------------\n")
 
     return df, y, True
-
-
 
 
 def normalize_data(df):
