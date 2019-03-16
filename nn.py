@@ -1,8 +1,8 @@
 #!/usr/bin/python3.6
-from keras.preprocessing.sequence import TimeseriesGenerator
-from keras.models import Sequential
-from keras.layers import Dense, Activation, Embedding, LSTM, Dropout, CuDNNLSTM
-from keras import optimizers
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Activation, Embedding, LSTM, Dropout, CuDNNLSTM
+from tensorflow.keras import optimizers
 import data
 import sys
 import numpy as np
@@ -19,11 +19,11 @@ from sklearn.preprocessing import MinMaxScaler
 # Parameters
 STEPS = 200      # amount of timesteps in each sequence
 # LR = 1e-3        # Learning rate
-INTERVAL = 5     # intervall between timesteps in sequence?
-LSTM_LAYERS = 50
+INTERVAL = 10     # intervall between timesteps in sequence?
+LSTM_LAYERS = 10
 DENSE_LAYERS = 0
 NEURONS = 150
-EPOCHS = 2000
+EPOCHS = 100
 
 
 # make tensorflow not allocate all gpu memory at start
@@ -43,8 +43,8 @@ if not success:
 print(str(dn[0]) + " \n")
 
 # Batch size, sequnce size:
-BATCH_SIZE_TRAIN = round((len(dn)/STEPS)/20)
-BATCH_SIZE_TEST = round(BATCH_SIZE_TRAIN/5)
+BATCH_SIZE_TRAIN = round((len(dn)/STEPS))
+BATCH_SIZE_TEST = round(BATCH_SIZE_TRAIN)
 END_INDEX_TRAIN = int(len(dn) * 0.8)
 START_INDEX_TEST = round(len(dn)*0.8-1)
 
@@ -61,18 +61,13 @@ dn[:, 2] = np.roll(dn[:, 2], 1)
 
 train = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
                             start_index=0, end_index=END_INDEX_TRAIN,
-                            shuffle=False , reverse=False, batch_size=BATCH_SIZE_TRAIN)
+                            shuffle=True , reverse=False, batch_size=BATCH_SIZE_TRAIN)
 
 val = TimeseriesGenerator(dn[:, [1]], dn[:, 2], length=STEPS, sampling_rate=1, stride=1,
                             start_index=START_INDEX_TEST, end_index=(len(dn)-1),
                             shuffle=False , reverse=False, batch_size=BATCH_SIZE_TEST)
 x0, y0 = train[0]
 x1, y1 = val[0]
-# print("y0 :" + str(y0) + "\n")
-# print("x1 :" + str(x1) + "\n")
-# print("y1 :" + str(y1) + "\n")
-print("\n\nLength of train: " + str(len(train)) + ", Shape of x: " + str(x0.shape) + ", Shape of y: " + str(y0.shape))
-print("Length of val: " + str(len(val)) + ", Shape of x: " + str(x1.shape) + ", Shape of y: " + str(y1.shape) + "\n")
 # make NN model
 model = Sequential()
 # reduction ratio neuron each layer, last added layer neurons/2
@@ -80,7 +75,6 @@ if LSTM_LAYERS: lstm_red = int((NEURONS/2)/LSTM_LAYERS)
 if DENSE_LAYERS: dense_red = int((NEURONS/2)/DENSE_LAYERS)
 # add input lstm layer
 model.add(CuDNNLSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True))
-# model.add(LSTM(units=NEURONS, input_shape=(STEPS, 1 ), return_sequences=True, activation='relu'))
 # add lstm layers
 for i in range(0, LSTM_LAYERS, 1):
     NEURONS = NEURONS - int(lstm_red)
@@ -95,7 +89,7 @@ for i in range(0, DENSE_LAYERS, 1):
 model.add(Dense(1))
 # optimizer to use
 # opt = optimizers.SGD(lr=LR, decay=1e-6, momentum=0.9, nesterov=True)
-opt = optimizers.nadam(lr=0.001, epsilon=None)
+opt = optimizers.Nadam(lr=0.001, epsilon=None)
 # compile model
 # model.compile(loss='binary_crossentropy', optimizer=opt, metrics=["accuracy"])
 model.compile(loss='mse', optimizer=opt)
@@ -120,7 +114,6 @@ plt.title('Model accuracy')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Test'], loc='upper left')
-#plt.show()
 
 # Plot training & validation loss values
 plt.plot(history.history['loss'])

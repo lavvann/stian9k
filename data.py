@@ -47,7 +47,7 @@ def import_raw_data(file_name):
     df.drop('low', axis=1, inplace=True)
             
     print("Finished opening file \ndata has dimensions: " + str(df.shape) + "\n\n")
-    print("data has types: " + str(df.dtypes))
+    print("data has types:\n " + str(df.dtypes))
     print("raw data imported")
     print("-----------------------------------------------------------\n")
     
